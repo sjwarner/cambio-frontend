@@ -186,24 +186,21 @@ export default function GameBoard({ state, dispatch }: Props) {
         {/* Deck */}
         <div className={styles.pileGroup}>
           <div className={styles.pileLabel}>Draw pile</div>
-          <div
+          <button
             className={`${styles.deckPile} ${state.phase === 'turn-idle' ? styles.deckSelectable : ''}`}
-            onClick={() => state.phase === 'turn-idle' && dispatch({ type: 'DRAW_CARD' })}
-            role="button"
+            onClick={() => dispatch({ type: 'DRAW_CARD' })}
+            disabled={state.phase !== 'turn-idle' || state.deck.length === 0}
             aria-label={`Draw pile (${state.deck.length} cards)`}
-            tabIndex={state.phase === 'turn-idle' ? 0 : -1}
-            onKeyDown={(e) => e.key === 'Enter' && state.phase === 'turn-idle' && dispatch({ type: 'DRAW_CARD' })}
           >
             {state.deck.length > 0 ? (
               <>
-                {/* Slight stack illusion */}
-                <div className={styles.deckShadow} />
+                <div className={styles.deckShadow} aria-hidden="true" />
                 <Card card={state.deck[0]} faceUp={false} />
               </>
             ) : (
               <div className={styles.emptyPile}>Empty</div>
             )}
-          </div>
+          </button>
           <div className={styles.deckCount}>{state.deck.length} left</div>
         </div>
 
