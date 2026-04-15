@@ -1,4 +1,4 @@
-import { CardRef } from '../types/game';
+import type { CardRef } from '../types/game';
 
 // ─── Action discriminated union ───────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
-import { GameAction } from './actions';
-import { Card, CardRef, GameState, Player, SpecialState, StickState } from '../types/game';
+import type { GameAction } from './actions';
+import type { Card, CardRef, GameState, Player, SpecialState, StickState } from '../types/game';
 import { createDeck, drawCards, shuffle } from '../utils/deck';
 import { computeScores, determineWinner, getSpecialAbility } from '../utils/scoring';
 

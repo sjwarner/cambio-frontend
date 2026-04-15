@@ -1,121 +1,93 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useReducer } from 'react';
+import { gameReducer, INITIAL_STATE } from './store/reducer';
+import SetupScreen from './components/SetupScreen';
+import PassDevice from './components/PassDevice';
+import PeekView from './components/PeekView';
+import GameBoard from './components/GameBoard';
+import GameOver from './components/GameOver';
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [state, dispatch] = useReducer(gameReducer, INITIAL_STATE);
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+  const { phase, players, currentPlayerIndex, peekPlayerIndex, stick } = state;
 
-      <div className="ticks"></div>
+  // ── Setup ────────────────────────────────────────────────────────────────────
+  if (phase === 'setup') {
+    return (
+      <SetupScreen
+        onStart={(names) => dispatch({ type: 'START_GAME', playerNames: names })}
+      />
+    );
+  }
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+  // ── Initial peek — pass device ────────────────────────────────────────────────
+  if (phase === 'peek-pass') {
+    const peeker = players[peekPlayerIndex];
+    return (
+      <PassDevice
+        playerName={peeker.name}
+        message="You'll get one chance to peek at your two nearest cards."
+        onConfirm={() => dispatch({ type: 'CONFIRM_PASS' })}
+      />
+    );
+  }
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+  // ── Initial peek — viewing ─────────────────────────────────────────────────────
+  if (phase === 'peek-view') {
+    const peeker = players[peekPlayerIndex];
+    return (
+      <PeekView
+        player={peeker}
+        onDone={() => dispatch({ type: 'DONE_PEEKING' })}
+      />
+    );
+  }
+
+  // ── Turn — pass device ────────────────────────────────────────────────────────
+  if (phase === 'turn-pass') {
+    const current = players[currentPlayerIndex];
+    const isCambioTurn = state.cambioCallerId !== null;
+    return (
+      <PassDevice
+        playerName={current.name}
+        message={
+          isCambioTurn
+            ? `Cambio has been called! This is your final turn. (${state.turnsLeftAfterCambio} remaining)`
+            : undefined
+        }
+        onConfirm={() => dispatch({ type: 'CONFIRM_PASS' })}
+      />
+    );
+  }
+
+  // ── Stick — pass device ────────────────────────────────────────────────────────
+  if (phase === 'stick-pass' && stick) {
+    const stickerName =
+      players.find((p) => p.id === stick.checkOrder[stick.checkIndex])?.name ?? '';
+    const topCard = state.discardPile[0];
+    return (
+      <PassDevice
+        playerName={stickerName}
+        message={
+          topCard
+            ? `Top of discard: ${topCard.rank} of ${topCard.suit}. Do you want to try to stick?`
+            : undefined
+        }
+        onConfirm={() => dispatch({ type: 'CONFIRM_PASS' })}
+      />
+    );
+  }
+
+  // ── Game over ──────────────────────────────────────────────────────────────────
+  if (phase === 'game-over') {
+    return (
+      <GameOver
+        state={state}
+        onPlayAgain={() => window.location.reload()}
+      />
+    );
+  }
+
+  // ── All active game phases render through GameBoard ───────────────────────────
+  return <GameBoard state={state} dispatch={dispatch} />;
 }
-
-export default App

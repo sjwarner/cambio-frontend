@@ -1,4 +1,4 @@
-import { Card, Player, ScoreEntry, SpecialType } from '../types/game';
+import type { Card, Player, ScoreEntry, SpecialType } from '../types/game';
 
 /** Point value of a single card. */
 export function cardPoints(card: Card): number {

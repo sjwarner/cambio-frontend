@@ -1,0 +1,133 @@
+/* Base card */
+.card {
+  position: relative;
+  width: 72px;
+  height: 100px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background: white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 4px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  font-family: 'Georgia', serif;
+  flex-shrink: 0;
+}
+
+/* Empty slot placeholder */
+.empty {
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Face-up */
+.faceUp {
+  background: white;
+}
+
+/* Face-down */
+.faceDown {
+  background: #1a3a6b;
+  border-color: #c9a84c;
+}
+
+/* Selectable state */
+.selectable {
+  cursor: pointer;
+}
+
+.selectable:hover:not(:disabled) {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+/* Selected */
+.selected {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 3px #f59e0b, 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  transform: translateY(-6px);
+}
+
+/* Dimmed */
+.dimmed {
+  opacity: 0.4;
+}
+
+/* Colour variants (face-up) */
+.red {
+  color: #c0392b;
+}
+
+.black {
+  color: #1a1a1a;
+}
+
+.joker {
+  color: #7c3aed;
+}
+
+/* Corner pip (top-left, bottom-right) */
+.corner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  gap: 1px;
+}
+
+.cornerBottom {
+  transform: rotate(180deg);
+  align-self: flex-end;
+}
+
+.rank {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.suit {
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* Centre pip */
+.center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.suitLarge {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.jokerLabel {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  color: #7c3aed;
+  text-align: center;
+}
+
+/* Card-back pattern */
+.backPattern {
+  position: absolute;
+  inset: 6px;
+  border-radius: 4px;
+  border: 2px solid #c9a84c;
+  background: repeating-linear-gradient(
+    45deg,
+    #1a3a6b,
+    #1a3a6b 4px,
+    #1e4480 4px,
+    #1e4480 8px
+  );
+}

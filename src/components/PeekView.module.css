@@ -1,0 +1,48 @@
+.overlay {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  max-width: 400px;
+  text-align: center;
+}
+
+.heading {
+  font-size: 22px;
+  font-weight: 800;
+  color: #f0c040;
+  margin: 0;
+}
+
+.sub {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.btn {
+  padding: 12px 32px;
+  border-radius: 10px;
+  border: none;
+  background: #f0c040;
+  color: #1a2e1a;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn:hover {
+  background: #f5d060;
+  transform: translateY(-2px);
+}
