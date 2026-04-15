@@ -1,0 +1,152 @@
+// ─── Card primitives ──────────────────────────────────────────────────────────
+
+export type Suit = 'hearts' | 'diamonds' | 'clubs' | 'spades' | 'joker';
+export type Rank =
+  | 'A'
+  | '2'
+  | '3'
+  | '4'
+  | '5'
+  | '6'
+  | '7'
+  | '8'
+  | '9'
+  | '10'
+  | 'J'
+  | 'Q'
+  | 'K'
+  | 'JOKER';
+
+export interface Card {
+  id: string;
+  suit: Suit;
+  rank: Rank;
+}
+
+/** A reference to a card in a player's hand by position */
+export interface CardRef {
+  playerId: string;
+  slotIndex: number;
+}
+
+// ─── Player ───────────────────────────────────────────────────────────────────
+
+export interface Player {
+  id: string;
+  name: string;
+  /** 4 slots arranged as 2×2. Index 2 & 3 are the "near" (bottom) row. */
+  hand: (Card | null)[];
+}
+
+// ─── Special ability types ────────────────────────────────────────────────────
+
+export type SpecialType = '7-8' | '9-10' | 'j-q' | 'black-king';
+
+export interface SpecialState {
+  type: SpecialType;
+  /** First card selected (used by j-q step 2, black-king step 2) */
+  firstRef: CardRef | null;
+  /** The card that was revealed to the player */
+  revealedCard: Card | null;
+}
+
+// ─── Sticking state ───────────────────────────────────────────────────────────
+
+export interface StickState {
+  /** Ordered list of player IDs to ask about sticking */
+  checkOrder: string[];
+  /** Index into checkOrder currently being checked */
+  checkIndex: number;
+  /** Player ID who made the last discard (excluded from sticking per Charlotte's rule) */
+  discarderId: string;
+  /** When a player attempts to stick another player's card, we track the target */
+  targetRef: CardRef | null;
+}
+
+// ─── Game phases ──────────────────────────────────────────────────────────────
+
+export type GamePhase =
+  // Initial setup
+  | 'setup'
+  // Pre-peek: show "pass device to player X" screen
+  | 'peek-pass'
+  // Player is viewing their bottom two cards
+  | 'peek-view'
+  // Pre-turn: show "pass device to player X" screen
+  | 'turn-pass'
+  // Waiting for player to draw or call Cambio
+  | 'turn-idle'
+  // Player drew a card, choosing what to do with it
+  | 'turn-drawn'
+  // 7/8 — pick one of your own cards to peek at
+  | 'special-look-own'
+  // 9/10 — pick any opponent's card to peek at
+  | 'special-look-other'
+  // Showing a peeked card briefly before continuing
+  | 'special-peek-reveal'
+  // J/Q step 1 — pick the first card to blind-swap
+  | 'special-blind-1'
+  // J/Q step 2 — pick the second card to blind-swap
+  | 'special-blind-2'
+  // Black King step 1 — pick any card to look at
+  | 'special-bk-look'
+  // Black King step 2 — card revealed; choose to switch or skip
+  | 'special-bk-reveal'
+  // Black King step 3 — pick which of your own cards to swap with the looked card
+  | 'special-bk-switch'
+  // Pass device to next player who will be asked about sticking
+  | 'stick-pass'
+  // Asking a player if they want to attempt a stick
+  | 'stick-offer'
+  // Player selecting a card to stick (from any hand)
+  | 'stick-select'
+  // Sticker must give one of their own cards to the target player (cross-player stick)
+  | 'stick-give'
+  // Game over — all cards flipped, scores shown
+  | 'game-over';
+
+// ─── Score entry ──────────────────────────────────────────────────────────────
+
+export interface ScoreEntry {
+  playerId: string;
+  name: string;
+  score: number;
+  calledCambio: boolean;
+}
+
+// ─── Full game state ──────────────────────────────────────────────────────────
+
+export interface GameState {
+  phase: GamePhase;
+  players: Player[];
+  deck: Card[];
+  discardPile: Card[];
+
+  /** Index into players[] of whoever's turn it is */
+  currentPlayerIndex: number;
+
+  /** Card drawn from deck during current turn */
+  drawnCard: Card | null;
+
+  // ── Peek phase ──
+  /** Index into players[] of who is currently peeking */
+  peekPlayerIndex: number;
+
+  // ── Special ability ──
+  special: SpecialState | null;
+
+  // ── Sticking ──
+  stick: StickState | null;
+
+  // ── Cambio ──
+  cambioCallerId: string | null;
+  /** Decrements each turn after Cambio is called; game ends when 0 */
+  turnsLeftAfterCambio: number;
+
+  // ── End game ──
+  scores: ScoreEntry[];
+  winnerId: string | null;
+
+  /** Transient UI message (e.g. "Wrong card! Penalty dealt.") */
+  notification: string | null;
+}
