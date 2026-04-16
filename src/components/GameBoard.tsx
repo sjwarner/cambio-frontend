@@ -199,7 +199,7 @@ export default function GameBoard({ state, dispatch, myPlayerId }: Props) {
           <button
             className={`${styles.deckPile} ${state.phase === 'turn-idle' ? styles.deckSelectable : ''}`}
             onClick={() => dispatch({ type: 'DRAW_CARD' })}
-            disabled={state.phase !== 'turn-idle' || state.deck.length === 0}
+            disabled={state.phase !== 'turn-idle' || state.deck.length === 0 || !isMyTurn}
             aria-label={`Draw pile (${state.deck.length} cards)`}
           >
             {state.deck.length > 0 ? (
@@ -333,8 +333,8 @@ export default function GameBoard({ state, dispatch, myPlayerId }: Props) {
         </div>
       )}
 
-      {/* Cambio button */}
-      {state.phase === 'turn-idle' && !state.cambioCallerId && (
+      {/* Cambio button — only the active player can call it */}
+      {state.phase === 'turn-idle' && !state.cambioCallerId && isMyTurn && (
         <div className={styles.turnActions}>
           <button
             className={styles.cambioBtn}
