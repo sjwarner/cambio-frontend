@@ -24,7 +24,7 @@ export type GameAction =
   /**
    * Select a card ref during a special ability or sticking phase.
    * Dual-purpose: used by look-own, look-other, blind-switch steps,
-   * black-king steps, stick-select, and stick-give.
+   * black-king steps, snap-select, and snap-give.
    */
   | { type: 'SELECT_CARD'; ref: CardRef }
   /** Dismiss a revealed card after peeking (7/8, 9/10, black-king reveal) */
@@ -32,11 +32,11 @@ export type GameAction =
   /** Black King: skip the optional switch after looking */
   | { type: 'SKIP_BK_SWITCH' }
   /**
-   * A player claims the right to stick in the stick-window.
-   * Only one player may stick per discard — first to claim wins.
+   * A player claims the right to snap in the snap-window.
+   * Only one player may snap per discard — first to claim wins.
    */
-  | { type: 'CLAIM_STICK'; playerId: string }
-  /** Nobody sticks — advance to the next turn */
-  | { type: 'SKIP_STICK' }
+  | { type: 'CLAIM_SNAP'; playerId: string }
+  /** Nobody snaps — advance to the next turn */
+  | { type: 'SKIP_SNAP' }
   /** Clear the transient notification message */
   | { type: 'CLEAR_NOTIFICATION' };

@@ -91,7 +91,7 @@
   background: rgba(240, 192, 64, 0.06);
 }
 
-.stickClaimant {
+.snapClaimant {
   border-color: rgba(52, 211, 153, 0.6);
   background: rgba(52, 211, 153, 0.06);
 }
@@ -256,9 +256,9 @@
   gap: 12px;
 }
 
-/* ── Sticking window ─────────────────────────────────────────────────── */
+/* ── Snaping window ─────────────────────────────────────────────────── */
 
-.stickWindow {
+.snapWindow {
   width: 100%;
   max-width: 720px;
   background: rgba(52, 211, 153, 0.08);
@@ -271,32 +271,32 @@
   align-items: center;
 }
 
-.stickTop {
+.snapTop {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
 }
 
-.stickTitle {
+.snapTitle {
   font-size: 18px;
   font-weight: 800;
   color: #6ee7b7;
 }
 
-.stickSub {
+.snapSub {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.5);
 }
 
-.stickButtons {
+.snapButtons {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
   justify-content: center;
 }
 
-.stickPlayerBtn {
+.snapPlayerBtn {
   padding: 10px 22px;
   border-radius: 10px;
   border: 2px solid rgba(52, 211, 153, 0.5);
@@ -308,7 +308,7 @@
   transition: all 0.15s;
 }
 
-.stickPlayerBtn:hover {
+.snapPlayerBtn:hover {
   background: rgba(52, 211, 153, 0.25);
   border-color: #6ee7b7;
   transform: translateY(-2px);

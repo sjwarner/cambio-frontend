@@ -50,16 +50,16 @@ export interface SpecialState {
   revealedCard: Card | null;
 }
 
-// ─── Sticking state ───────────────────────────────────────────────────────────
+// ─── Snapping state ───────────────────────────────────────────────────────────
 
-export interface StickState {
-  /** Player IDs eligible to stick (everyone except the discarder) */
+export interface SnapState {
+  /** Player IDs eligible to snap (all players) */
   eligibleIds: string[];
-  /** Player ID who made the last discard (excluded per Charlotte's rule) */
+  /** Player ID who made the last discard */
   discarderId: string;
-  /** Set once a player claims the stick window */
+  /** Set once a player claims the snap window */
   claimedBy: string | null;
-  /** When sticking another player's card, track the target slot */
+  /** When snapping another player's card, track the target slot */
   targetRef: CardRef | null;
 }
 
@@ -90,12 +90,12 @@ export type GamePhase =
   | 'special-bk-reveal'
   // Black King step 3 — pick which of your own cards to swap with the looked card
   | 'special-bk-switch'
-  // Shared sticking window: all eligible players shown simultaneously
-  | 'stick-window'
-  // The player who claimed the window selects a card to stick
-  | 'stick-select'
-  // Cross-player stick: claimant chooses a card to give to the target player
-  | 'stick-give'
+  // Shared snap window: all players shown simultaneously
+  | 'snap-window'
+  // The player who claimed the snap window selects a card to snap
+  | 'snap-select'
+  // Cross-player snap: claimant chooses a card to give to the target player
+  | 'snap-give'
   // Game over — all cards flipped, scores shown
   | 'game-over';
 
@@ -129,8 +129,8 @@ export interface GameState {
   // ── Special ability ──
   special: SpecialState | null;
 
-  // ── Sticking ──
-  stick: StickState | null;
+  // ── Snapping ──
+  snap: SnapState | null;
 
   // ── Cambio ──
   cambioCallerId: string | null;

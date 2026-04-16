@@ -1,5 +1,5 @@
 import type { GameAction } from './actions';
-import type { Card, CardRef, GameState, Player, SpecialState, StickState } from '../types/game';
+import type { Card, CardRef, GameState, Player, SpecialState, SnapState } from '../types/game';
 import { createDeck, drawCards, shuffle } from '../utils/deck';
 import { computeScores, determineWinner, getSpecialAbility } from '../utils/scoring';
 
@@ -14,7 +14,7 @@ export const INITIAL_STATE: GameState = {
   drawnCard: null,
   peekPlayerIndex: 0,
   special: null,
-  stick: null,
+  snap: null,
   cambioCallerId: null,
   turnsLeftAfterCambio: 0,
   scores: [],
@@ -60,8 +60,8 @@ function dealPenalty(state: GameState, playerId: string): GameState {
   return { ...state, players, deck };
 }
 
-function buildEligibleIds(players: Player[], discarderId: string): string[] {
-  return players.filter((p) => p.id !== discarderId).map((p) => p.id);
+function buildEligibleIds(players: Player[]): string[] {
+  return players.map((p) => p.id);
 }
 
 function endGame(state: GameState): GameState {
@@ -74,7 +74,7 @@ function endGame(state: GameState): GameState {
     winnerId,
     drawnCard: null,
     special: null,
-    stick: null,
+    snap: null,
   };
 }
 
@@ -92,7 +92,7 @@ function advanceToNextTurn(state: GameState): GameState {
       currentPlayerIndex: nextIndex,
       drawnCard: null,
       special: null,
-      stick: null,
+      snap: null,
       turnsLeftAfterCambio: remaining,
     };
   }
@@ -103,28 +103,25 @@ function advanceToNextTurn(state: GameState): GameState {
     currentPlayerIndex: nextIndex,
     drawnCard: null,
     special: null,
-    stick: null,
+    snap: null,
   };
 }
 
-/** Open the shared sticking window after a discard, or skip if no eligible players. */
-function beginStickPhase(state: GameState, discarderId: string): GameState {
-  const eligibleIds = buildEligibleIds(state.players, discarderId);
-  if (eligibleIds.length === 0) {
-    return advanceToNextTurn(state);
-  }
-  const stick: StickState = {
+/** Open the shared snap window after a discard. All players are eligible. */
+function beginSnapPhase(state: GameState, discarderId: string): GameState {
+  const eligibleIds = buildEligibleIds(state.players);
+  const snap: SnapState = {
     eligibleIds,
     discarderId,
     claimedBy: null,
     targetRef: null,
   };
-  return { ...state, phase: 'stick-window', stick, special: null };
+  return { ...state, phase: 'snap-window', snap, special: null };
 }
 
 function afterSpecial(state: GameState): GameState {
   const discarderId = state.players[state.currentPlayerIndex].id;
-  return beginStickPhase({ ...state, special: null }, discarderId);
+  return beginSnapPhase({ ...state, special: null }, discarderId);
 }
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
@@ -196,7 +193,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const base = { ...state, drawnCard: null, discardPile };
       const ability = getSpecialAbility(card);
 
-      if (!ability) return beginStickPhase(base, discarderId);
+      if (!ability) return beginSnapPhase(base, discarderId);
 
       const special: SpecialState = { type: ability, firstRef: null, revealedCard: null };
       const phaseMap: Record<string, GameState['phase']> = {
@@ -217,7 +214,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       const discardPile = [handCard, ...state.discardPile];
       const players = setCard(state.players, cp.id, action.slotIndex, state.drawnCard);
-      return beginStickPhase({ ...state, players, discardPile, drawnCard: null }, cp.id);
+      return beginSnapPhase({ ...state, players, discardPile, drawnCard: null }, cp.id);
     }
 
     // ── Card selection (multi-purpose) ────────────────────────────────────────
@@ -284,10 +281,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return afterSpecial({ ...state, players });
       }
 
-      // ── stick-select ──────────────────────────────────────────────────────
-      if (state.phase === 'stick-select') {
-        if (!state.stick?.claimedBy) return state;
-        const stickerId = state.stick.claimedBy;
+      // ── snap-select ───────────────────────────────────────────────────────
+      if (state.phase === 'snap-select') {
+        if (!state.snap?.claimedBy) return state;
+        const snapperId = state.snap.claimedBy;
         const topDiscard = state.discardPile[0];
         if (!topDiscard) return state;
 
@@ -295,9 +292,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         const selectedCard = targetPlayer?.hand[ref.slotIndex];
         if (!selectedCard) return state;
 
-        const isOwnCard = ref.playerId === stickerId;
+        const isOwnCard = ref.playerId === snapperId;
         const rankMatch = selectedCard.rank === topDiscard.rank;
-        const stickerName = state.players.find((p) => p.id === stickerId)?.name ?? '';
+        const snapperName = state.players.find((p) => p.id === snapperId)?.name ?? '';
 
         if (rankMatch) {
           const discardPile = [selectedCard, ...state.discardPile];
@@ -308,47 +305,47 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
               ...state,
               players,
               discardPile,
-              stick: null,
-              notification: `${stickerName} stuck a ${selectedCard.rank}!`,
+              snap: null,
+              notification: `${snapperName} snapped a ${selectedCard.rank}!`,
             });
           } else {
-            // Cross-player: sticker must give a card to the target player
+            // Cross-player: snapper must give a card to the target player
             return {
               ...state,
               players,
               discardPile,
-              stick: { ...state.stick!, targetRef: ref },
-              phase: 'stick-give',
-              notification: `${stickerName} stuck ${targetPlayer?.name}'s card! Choose a card to give them.`,
+              snap: { ...state.snap!, targetRef: ref },
+              phase: 'snap-give',
+              notification: `${snapperName} snapped ${targetPlayer?.name}'s card! Choose a card to give them.`,
             };
           }
         } else {
           // Wrong — penalty
-          const penaltyState = dealPenalty(state, stickerId);
+          const penaltyState = dealPenalty(state, snapperId);
           return advanceToNextTurn({
             ...penaltyState,
-            stick: null,
-            notification: `Wrong! ${stickerName} receives a penalty card.`,
+            snap: null,
+            notification: `Wrong! ${snapperName} receives a penalty card.`,
           });
         }
       }
 
-      // ── stick-give ────────────────────────────────────────────────────────
-      if (state.phase === 'stick-give') {
-        if (!state.stick?.claimedBy) return state;
-        const stickerId = state.stick.claimedBy;
-        if (ref.playerId !== stickerId) return state;
-        const giveCard = state.players.find((p) => p.id === stickerId)?.hand[ref.slotIndex];
+      // ── snap-give ─────────────────────────────────────────────────────────
+      if (state.phase === 'snap-give') {
+        if (!state.snap?.claimedBy) return state;
+        const snapperId = state.snap.claimedBy;
+        if (ref.playerId !== snapperId) return state;
+        const giveCard = state.players.find((p) => p.id === snapperId)?.hand[ref.slotIndex];
         if (!giveCard) return state;
-        const targetPlayerId = state.stick.targetRef?.playerId;
+        const targetPlayerId = state.snap.targetRef?.playerId;
         if (!targetPlayerId) return state;
 
-        let players = setCard(state.players, stickerId, ref.slotIndex, null);
+        let players = setCard(state.players, snapperId, ref.slotIndex, null);
         players = players.map((p) => {
           if (p.id !== targetPlayerId) return p;
           return { ...p, hand: [...p.hand, giveCard] };
         });
-        return advanceToNextTurn({ ...state, players, stick: null, notification: null });
+        return advanceToNextTurn({ ...state, players, snap: null, notification: null });
       }
 
       return state;
@@ -369,21 +366,21 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return afterSpecial(state);
     }
 
-    // ── Sticking: a player claims the window ──────────────────────────────────
-    case 'CLAIM_STICK': {
-      if (state.phase !== 'stick-window' || !state.stick) return state;
-      if (!state.stick.eligibleIds.includes(action.playerId)) return state;
+    // ── Snapping: a player claims the window ──────────────────────────────────
+    case 'CLAIM_SNAP': {
+      if (state.phase !== 'snap-window' || !state.snap) return state;
+      if (!state.snap.eligibleIds.includes(action.playerId)) return state;
       return {
         ...state,
-        phase: 'stick-select',
-        stick: { ...state.stick, claimedBy: action.playerId },
+        phase: 'snap-select',
+        snap: { ...state.snap, claimedBy: action.playerId },
       };
     }
 
-    // ── Sticking: nobody sticks ───────────────────────────────────────────────
-    case 'SKIP_STICK': {
-      if (state.phase !== 'stick-window') return state;
-      return advanceToNextTurn({ ...state, stick: null });
+    // ── Snapping: nobody snaps ────────────────────────────────────────────────
+    case 'SKIP_SNAP': {
+      if (state.phase !== 'snap-window') return state;
+      return advanceToNextTurn({ ...state, snap: null });
     }
 
     case 'CLEAR_NOTIFICATION':

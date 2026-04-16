@@ -47,15 +47,15 @@ export default function GameBoard({ state, dispatch }: Props) {
         (i) => !(lookedRef && playerId === lookedRef.playerId && i === lookedRef.slotIndex),
       ));
     }
-    if (phase === 'stick-select') {
-      const stickerId = state.stick?.claimedBy;
-      if (!stickerId) return new Set();
-      // Sticker can pick from any hand
+    if (phase === 'snap-select') {
+      const snaperId = state.snap?.claimedBy;
+      if (!snaperId) return new Set();
+      // Snaper can pick from any hand
       return filled;
     }
-    if (phase === 'stick-give') {
-      const stickerId = state.stick?.claimedBy;
-      if (playerId === stickerId) return filled;
+    if (phase === 'snap-give') {
+      const snaperId = state.snap?.claimedBy;
+      if (playerId === snaperId) return filled;
     }
     return new Set();
   }
@@ -103,17 +103,17 @@ export default function GameBoard({ state, dispatch }: Props) {
         return `${name}: memorise this card. Swap it with one of your own, or skip.`;
       case 'special-bk-switch':
         return `${name}: tap one of your own cards to swap with the peeked card.`;
-      case 'stick-window': {
+      case 'snap-window': {
         const rank = topDiscard?.rank ?? '?';
-        return `${rank} discarded! Anyone can stick — first to tap their name wins the window.`;
+        return `${rank} discarded! Anyone can snap — first to tap their name wins the window.`;
       }
-      case 'stick-select': {
-        const stickerName = state.players.find((p) => p.id === state.stick?.claimedBy)?.name ?? '';
-        return `${stickerName}: tap the card you think matches the ${topDiscard?.rank}.`;
+      case 'snap-select': {
+        const snaperName = state.players.find((p) => p.id === state.snap?.claimedBy)?.name ?? '';
+        return `${snaperName}: tap the card you think matches the ${topDiscard?.rank}.`;
       }
-      case 'stick-give': {
-        const stickerName = state.players.find((p) => p.id === state.stick?.claimedBy)?.name ?? '';
-        return `${stickerName}: tap one of your cards to give to the other player.`;
+      case 'snap-give': {
+        const snaperName = state.players.find((p) => p.id === state.snap?.claimedBy)?.name ?? '';
+        return `${snaperName}: tap one of your cards to give to the other player.`;
       }
       default:
         return '';
@@ -145,11 +145,11 @@ export default function GameBoard({ state, dispatch }: Props) {
       <div className={styles.handsGrid}>
         {state.players.map((player) => {
           const isCurrent = player.id === currentPlayer.id;
-          const isStickClaimant = state.stick?.claimedBy === player.id;
+          const isSnapClaimant = state.snap?.claimedBy === player.id;
           return (
             <div
               key={player.id}
-              className={`${styles.handWrapper} ${isCurrent ? styles.currentPlayer : ''} ${isStickClaimant ? styles.stickClaimant : ''}`}
+              className={`${styles.handWrapper} ${isCurrent ? styles.currentPlayer : ''} ${isSnapClaimant ? styles.snapClaimant : ''}`}
             >
               {isCurrent && <div className={styles.turnBadge}>● TURN</div>}
               <PlayerHand
@@ -230,23 +230,23 @@ export default function GameBoard({ state, dispatch }: Props) {
           </div>
         )}
 
-      {/* ── Stick window ──────────────────────────────────────────────────── */}
-      {state.phase === 'stick-window' && state.stick && (
-        <div className={styles.stickWindow}>
-          <div className={styles.stickTop}>
-            <span className={styles.stickTitle}>
-              Stick on <strong>{topDiscard?.rank}</strong>?
+      {/* ── Snap window ──────────────────────────────────────────────────── */}
+      {state.phase === 'snap-window' && state.snap && (
+        <div className={styles.snapWindow}>
+          <div className={styles.snapTop}>
+            <span className={styles.snapTitle}>
+              Snap on <strong>{topDiscard?.rank}</strong>?
             </span>
-            <span className={styles.stickSub}>First to tap their name wins the window!</span>
+            <span className={styles.snapSub}>First to tap their name wins the window!</span>
           </div>
-          <div className={styles.stickButtons}>
-            {state.stick.eligibleIds.map((pid) => {
+          <div className={styles.snapButtons}>
+            {state.snap.eligibleIds.map((pid) => {
               const name = state.players.find((p) => p.id === pid)?.name ?? '';
               return (
                 <button
                   key={pid}
-                  className={styles.stickPlayerBtn}
-                  onClick={() => dispatch({ type: 'CLAIM_STICK', playerId: pid })}
+                  className={styles.snapPlayerBtn}
+                  onClick={() => dispatch({ type: 'CLAIM_SNAP', playerId: pid })}
                 >
                   {name}
                 </button>
@@ -254,9 +254,9 @@ export default function GameBoard({ state, dispatch }: Props) {
             })}
             <button
               className={styles.actionBtnSecondary}
-              onClick={() => dispatch({ type: 'SKIP_STICK' })}
+              onClick={() => dispatch({ type: 'SKIP_SNAP' })}
             >
-              No one sticks
+              No one snaps
             </button>
           </div>
         </div>
