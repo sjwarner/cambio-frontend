@@ -8,13 +8,22 @@ import styles from './GameBoard.module.css';
 interface Props {
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
-  /** Set in online mode — the player ID belonging to this browser. */
-  myPlayerId?: string;
+  /**
+   * undefined  → local play (no identity; show everything)
+   * null       → online play, player ID not yet assigned (hide sensitive info)
+   * string     → online play, assigned player ID
+   */
+  myPlayerId?: string | null;
 }
 
 export default function GameBoard({ state, dispatch, myPlayerId }: Props) {
-  // In online mode: is it currently this player's turn?
-  const isMyTurn = !myPlayerId || state.players[state.currentPlayerIndex]?.id === myPlayerId;
+  // undefined = local play: treat every action as "my turn" so nothing is hidden.
+  // null      = online but not yet assigned: default to hiding (safer than revealing).
+  // string    = online assigned: only true when it's actually this player's turn.
+  const isMyTurn =
+    myPlayerId === undefined
+      ? true
+      : myPlayerId !== null && state.players[state.currentPlayerIndex]?.id === myPlayerId;
   const notifTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {

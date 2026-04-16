@@ -88,7 +88,7 @@ function OnlineGame({
   }
 
   // ── Active game ───────────────────────────────────────────────────────────
-  return <GameBoard state={gameState} dispatch={dispatch} myPlayerId={myPlayerId ?? undefined} />;
+  return <GameBoard state={gameState} dispatch={dispatch} myPlayerId={myPlayerId} />;
 }
 
 // ─── Waiting screen shown to non-peeking players ──────────────────────────────
