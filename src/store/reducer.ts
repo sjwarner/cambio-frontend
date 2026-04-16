@@ -137,7 +137,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const deck = shuffle(createDeck());
       const playerCount = action.playerNames.length;
       const [dealt, rest] = drawCards(deck, playerCount * 4);
-      const [firstDiscard, finalDeck] = drawCards(rest, 1);
 
       const players: Player[] = action.playerNames.map((name, i) => ({
         id: `player-${i}`,
@@ -149,8 +148,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...INITIAL_STATE,
         phase: 'peek-view',
         players,
-        deck: finalDeck,
-        discardPile: firstDiscard,
+        deck: rest,
+        discardPile: [],
         peekPlayerIndex: 0,
       };
     }
