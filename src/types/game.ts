@@ -61,6 +61,8 @@ export interface SnapState {
   claimedBy: string | null;
   /** When snapping another player's card, track the target slot */
   targetRef: CardRef | null;
+  /** Players who have passed (online: window closes when all eligibleIds have passed) */
+  passedIds: string[];
 }
 
 // ─── Game phases ──────────────────────────────────────────────────────────────

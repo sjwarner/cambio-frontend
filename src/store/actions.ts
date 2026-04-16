@@ -38,7 +38,11 @@ export type GameAction =
    * Only one player may snap per discard — first to claim wins.
    */
   | { type: 'CLAIM_SNAP'; playerId: string }
-  /** Nobody snaps — advance to the next turn */
-  | { type: 'SKIP_SNAP' }
+  /**
+   * A player passes on the snap window.
+   * Online mode: include playerId — window closes once all players have passed.
+   * Local mode: omit playerId — window closes immediately.
+   */
+  | { type: 'SKIP_SNAP'; playerId?: string }
   /** Clear the transient notification message */
   | { type: 'CLEAR_NOTIFICATION' };

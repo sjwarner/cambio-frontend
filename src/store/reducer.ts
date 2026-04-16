@@ -115,6 +115,7 @@ function beginSnapPhase(state: GameState, discarderId: string): GameState {
     discarderId,
     claimedBy: null,
     targetRef: null,
+    passedIds: [],
   };
   return { ...state, phase: 'snap-window', snap, special: null };
 }
@@ -383,10 +384,25 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
-    // ── Snapping: nobody snaps ────────────────────────────────────────────────
+    // ── Snapping: a player passes on the snap window ──────────────────────────
     case 'SKIP_SNAP': {
-      if (state.phase !== 'snap-window') return state;
-      return advanceToNextTurn({ ...state, snap: null });
+      if (state.phase !== 'snap-window' || !state.snap) return state;
+
+      // Local mode (no playerId): close immediately.
+      if (!action.playerId) {
+        return advanceToNextTurn({ ...state, snap: null });
+      }
+
+      // Online mode: record this player's pass; advance only when everyone has passed.
+      const passedIds = state.snap.passedIds.includes(action.playerId)
+        ? state.snap.passedIds
+        : [...state.snap.passedIds, action.playerId];
+
+      const allPassed = state.snap.eligibleIds.every((id) => passedIds.includes(id));
+      if (allPassed) {
+        return advanceToNextTurn({ ...state, snap: null });
+      }
+      return { ...state, snap: { ...state.snap, passedIds } };
     }
 
     case 'CLEAR_NOTIFICATION':

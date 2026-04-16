@@ -323,12 +323,33 @@ export default function GameBoard({ state, dispatch, myPlayerId }: Props) {
                 );
               })
             )}
-            <button
-              className={styles.actionBtnSecondary}
-              onClick={() => dispatch({ type: 'SKIP_SNAP' })}
-            >
-              No one snaps
-            </button>
+            {myPlayerId ? (
+              // Online: each player passes individually; window closes when all have passed.
+              (() => {
+                const hasPassed = state.snap.passedIds.includes(myPlayerId);
+                const passedCount = state.snap.passedIds.length;
+                const totalCount = state.snap.eligibleIds.length;
+                return (
+                  <button
+                    className={styles.actionBtnSecondary}
+                    onClick={() => dispatch({ type: 'SKIP_SNAP', playerId: myPlayerId })}
+                    disabled={hasPassed}
+                  >
+                    {hasPassed
+                      ? `Passed (${passedCount}/${totalCount})`
+                      : 'Pass'}
+                  </button>
+                );
+              })()
+            ) : (
+              // Local: close immediately.
+              <button
+                className={styles.actionBtnSecondary}
+                onClick={() => dispatch({ type: 'SKIP_SNAP' })}
+              >
+                No one snaps
+              </button>
+            )}
           </div>
         </div>
       )}
