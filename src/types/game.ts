@@ -53,13 +53,13 @@ export interface SpecialState {
 // ─── Sticking state ───────────────────────────────────────────────────────────
 
 export interface StickState {
-  /** Ordered list of player IDs to ask about sticking */
-  checkOrder: string[];
-  /** Index into checkOrder currently being checked */
-  checkIndex: number;
-  /** Player ID who made the last discard (excluded from sticking per Charlotte's rule) */
+  /** Player IDs eligible to stick (everyone except the discarder) */
+  eligibleIds: string[];
+  /** Player ID who made the last discard (excluded per Charlotte's rule) */
   discarderId: string;
-  /** When a player attempts to stick another player's card, we track the target */
+  /** Set once a player claims the stick window */
+  claimedBy: string | null;
+  /** When sticking another player's card, track the target slot */
   targetRef: CardRef | null;
 }
 
@@ -68,12 +68,8 @@ export interface StickState {
 export type GamePhase =
   // Initial setup
   | 'setup'
-  // Pre-peek: show "pass device to player X" screen
-  | 'peek-pass'
-  // Player is viewing their bottom two cards
+  // Each player privately peeks at their bottom two cards (sequential, shield pattern)
   | 'peek-view'
-  // Pre-turn: show "pass device to player X" screen
-  | 'turn-pass'
   // Waiting for player to draw or call Cambio
   | 'turn-idle'
   // Player drew a card, choosing what to do with it
@@ -94,13 +90,11 @@ export type GamePhase =
   | 'special-bk-reveal'
   // Black King step 3 — pick which of your own cards to swap with the looked card
   | 'special-bk-switch'
-  // Pass device to next player who will be asked about sticking
-  | 'stick-pass'
-  // Asking a player if they want to attempt a stick
-  | 'stick-offer'
-  // Player selecting a card to stick (from any hand)
+  // Shared sticking window: all eligible players shown simultaneously
+  | 'stick-window'
+  // The player who claimed the window selects a card to stick
   | 'stick-select'
-  // Sticker must give one of their own cards to the target player (cross-player stick)
+  // Cross-player stick: claimant chooses a card to give to the target player
   | 'stick-give'
   // Game over — all cards flipped, scores shown
   | 'game-over';

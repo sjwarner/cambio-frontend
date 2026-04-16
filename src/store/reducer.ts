@@ -60,7 +60,7 @@ function dealPenalty(state: GameState, playerId: string): GameState {
   return { ...state, players, deck };
 }
 
-function buildStickCheckOrder(players: Player[], discarderId: string): string[] {
+function buildEligibleIds(players: Player[], discarderId: string): string[] {
   return players.filter((p) => p.id !== discarderId).map((p) => p.id);
 }
 
@@ -88,7 +88,7 @@ function advanceToNextTurn(state: GameState): GameState {
     }
     return {
       ...state,
-      phase: 'turn-pass',
+      phase: 'turn-idle',
       currentPlayerIndex: nextIndex,
       drawnCard: null,
       special: null,
@@ -99,7 +99,7 @@ function advanceToNextTurn(state: GameState): GameState {
 
   return {
     ...state,
-    phase: 'turn-pass',
+    phase: 'turn-idle',
     currentPlayerIndex: nextIndex,
     drawnCard: null,
     special: null,
@@ -107,27 +107,24 @@ function advanceToNextTurn(state: GameState): GameState {
   };
 }
 
+/** Open the shared sticking window after a discard, or skip if no eligible players. */
 function beginStickPhase(state: GameState, discarderId: string): GameState {
-  const checkOrder = buildStickCheckOrder(state.players, discarderId);
-  if (checkOrder.length === 0) {
+  const eligibleIds = buildEligibleIds(state.players, discarderId);
+  if (eligibleIds.length === 0) {
     return advanceToNextTurn(state);
   }
-  const stick: StickState = { checkOrder, checkIndex: 0, discarderId, targetRef: null };
-  return { ...state, phase: 'stick-pass', stick, special: null };
+  const stick: StickState = {
+    eligibleIds,
+    discarderId,
+    claimedBy: null,
+    targetRef: null,
+  };
+  return { ...state, phase: 'stick-window', stick, special: null };
 }
 
 function afterSpecial(state: GameState): GameState {
   const discarderId = state.players[state.currentPlayerIndex].id;
   return beginStickPhase({ ...state, special: null }, discarderId);
-}
-
-function advanceStickCheck(state: GameState): GameState {
-  if (!state.stick) return advanceToNextTurn(state);
-  const { checkOrder, checkIndex } = state.stick;
-  if (checkIndex >= checkOrder.length) {
-    return advanceToNextTurn(state);
-  }
-  return { ...state, phase: 'stick-pass' };
 }
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
@@ -150,7 +147,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       return {
         ...INITIAL_STATE,
-        phase: 'peek-pass',
+        phase: 'peek-view',
         players,
         deck: finalDeck,
         discardPile: firstDiscard,
@@ -158,21 +155,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
-    // ── Universal "pass device" confirmation ──────────────────────────────────
-    case 'CONFIRM_PASS': {
-      if (state.phase === 'peek-pass') return { ...state, phase: 'peek-view' };
-      if (state.phase === 'turn-pass') return { ...state, phase: 'turn-idle' };
-      if (state.phase === 'stick-pass') return { ...state, phase: 'stick-offer' };
-      return state;
-    }
-
     // ── Peek phase ───────────────────────────────────────────────────────────
     case 'DONE_PEEKING': {
       const nextPeek = state.peekPlayerIndex + 1;
       if (nextPeek >= state.players.length) {
-        return { ...state, phase: 'turn-pass', currentPlayerIndex: 0, peekPlayerIndex: 0 };
+        return { ...state, phase: 'turn-idle', currentPlayerIndex: 0, peekPlayerIndex: 0 };
       }
-      return { ...state, phase: 'peek-pass', peekPlayerIndex: nextPeek };
+      return { ...state, phase: 'peek-view', peekPlayerIndex: nextPeek };
     }
 
     // ── Drawing ──────────────────────────────────────────────────────────────
@@ -191,7 +180,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       }
       return {
         ...state,
-        phase: 'turn-pass',
+        phase: 'turn-idle',
         cambioCallerId: callerId,
         turnsLeftAfterCambio: othersCount,
         currentPlayerIndex: nextPlayerIndex(state),
@@ -237,7 +226,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const { ref } = action;
       const currentId = state.players[state.currentPlayerIndex].id;
 
-      // ── 7/8: look at own card ─────────────────────────────────────────────
       if (state.phase === 'special-look-own') {
         if (ref.playerId !== currentId) return state;
         const card = state.players.find((p) => p.id === ref.playerId)?.hand[ref.slotIndex];
@@ -249,7 +237,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
 
-      // ── 9/10: look at opponent card ───────────────────────────────────────
       if (state.phase === 'special-look-other') {
         if (ref.playerId === currentId) return state;
         const card = state.players.find((p) => p.id === ref.playerId)?.hand[ref.slotIndex];
@@ -261,7 +248,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
 
-      // ── J/Q blind switch step 1 ───────────────────────────────────────────
       if (state.phase === 'special-blind-1') {
         const card = state.players.find((p) => p.id === ref.playerId)?.hand[ref.slotIndex];
         if (!card) return state;
@@ -272,7 +258,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
 
-      // ── J/Q blind switch step 2 ───────────────────────────────────────────
       if (state.phase === 'special-blind-2') {
         const first = state.special?.firstRef;
         if (!first) return state;
@@ -281,7 +266,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return afterSpecial({ ...state, players });
       }
 
-      // ── Black King: look at any card ──────────────────────────────────────
       if (state.phase === 'special-bk-look') {
         const card = state.players.find((p) => p.id === ref.playerId)?.hand[ref.slotIndex];
         if (!card) return state;
@@ -292,7 +276,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
 
-      // ── Black King: pick own card to swap with looked card ────────────────
       if (state.phase === 'special-bk-switch') {
         if (ref.playerId !== currentId) return state;
         const lookedRef = state.special?.firstRef;
@@ -302,10 +285,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return afterSpecial({ ...state, players });
       }
 
-      // ── Stick select ──────────────────────────────────────────────────────
+      // ── stick-select ──────────────────────────────────────────────────────
       if (state.phase === 'stick-select') {
-        if (!state.stick) return state;
-        const stickerId = state.stick.checkOrder[state.stick.checkIndex];
+        if (!state.stick?.claimedBy) return state;
+        const stickerId = state.stick.claimedBy;
         const topDiscard = state.discardPile[0];
         if (!topDiscard) return state;
 
@@ -315,47 +298,46 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
         const isOwnCard = ref.playerId === stickerId;
         const rankMatch = selectedCard.rank === topDiscard.rank;
+        const stickerName = state.players.find((p) => p.id === stickerId)?.name ?? '';
 
         if (rankMatch) {
           const discardPile = [selectedCard, ...state.discardPile];
           const players = setCard(state.players, ref.playerId, ref.slotIndex, null);
-          const stickerName = state.players.find((p) => p.id === stickerId)?.name ?? '';
 
           if (isOwnCard) {
-            const stick = { ...state.stick, checkIndex: state.stick.checkIndex + 1, targetRef: null };
-            return advanceStickCheck({
+            return advanceToNextTurn({
               ...state,
               players,
               discardPile,
-              stick,
+              stick: null,
               notification: `${stickerName} stuck a ${selectedCard.rank}!`,
             });
           } else {
-            // Cross-player: sticker now chooses a card to give away
-            const stick = { ...state.stick, targetRef: ref };
+            // Cross-player: sticker must give a card to the target player
             return {
               ...state,
               players,
               discardPile,
-              stick,
+              stick: { ...state.stick!, targetRef: ref },
               phase: 'stick-give',
               notification: `${stickerName} stuck ${targetPlayer?.name}'s card! Choose a card to give them.`,
             };
           }
         } else {
           // Wrong — penalty
-          let next = dealPenalty(state, stickerId);
-          const stickerName = state.players.find((p) => p.id === stickerId)?.name ?? '';
-          const stick = { ...state.stick, checkIndex: state.stick.checkIndex + 1, targetRef: null };
-          next = { ...next, stick, notification: `Wrong! ${stickerName} receives a penalty card.` };
-          return advanceStickCheck(next);
+          const penaltyState = dealPenalty(state, stickerId);
+          return advanceToNextTurn({
+            ...penaltyState,
+            stick: null,
+            notification: `Wrong! ${stickerName} receives a penalty card.`,
+          });
         }
       }
 
-      // ── Stick give (cross-player: give one of your cards to target) ────────
+      // ── stick-give ────────────────────────────────────────────────────────
       if (state.phase === 'stick-give') {
-        if (!state.stick) return state;
-        const stickerId = state.stick.checkOrder[state.stick.checkIndex];
+        if (!state.stick?.claimedBy) return state;
+        const stickerId = state.stick.claimedBy;
         if (ref.playerId !== stickerId) return state;
         const giveCard = state.players.find((p) => p.id === stickerId)?.hand[ref.slotIndex];
         if (!giveCard) return state;
@@ -367,8 +349,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           if (p.id !== targetPlayerId) return p;
           return { ...p, hand: [...p.hand, giveCard] };
         });
-        const stick = { ...state.stick, checkIndex: state.stick.checkIndex + 1, targetRef: null };
-        return advanceStickCheck({ ...state, players, stick, notification: null });
+        return advanceToNextTurn({ ...state, players, stick: null, notification: null });
       }
 
       return state;
@@ -380,25 +361,30 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return afterSpecial({ ...state, special: { ...state.special!, revealedCard: null } });
       }
       if (state.phase === 'special-bk-reveal') {
-        // Move to switch step — special.revealedCard kept for display
         return { ...state, phase: 'special-bk-switch' };
       }
       return state;
     }
 
-    // ── Black King: skip switch after looking ─────────────────────────────────
     case 'SKIP_BK_SWITCH': {
       return afterSpecial(state);
     }
 
-    // ── Sticking: player responds ─────────────────────────────────────────────
-    case 'STICK_RESPONSE': {
-      if (!state.stick) return state;
-      if (!action.wants) {
-        const stick = { ...state.stick, checkIndex: state.stick.checkIndex + 1, targetRef: null };
-        return advanceStickCheck({ ...state, stick });
-      }
-      return { ...state, phase: 'stick-select' };
+    // ── Sticking: a player claims the window ──────────────────────────────────
+    case 'CLAIM_STICK': {
+      if (state.phase !== 'stick-window' || !state.stick) return state;
+      if (!state.stick.eligibleIds.includes(action.playerId)) return state;
+      return {
+        ...state,
+        phase: 'stick-select',
+        stick: { ...state.stick, claimedBy: action.playerId },
+      };
+    }
+
+    // ── Sticking: nobody sticks ───────────────────────────────────────────────
+    case 'SKIP_STICK': {
+      if (state.phase !== 'stick-window') return state;
+      return advanceToNextTurn({ ...state, stick: null });
     }
 
     case 'CLEAR_NOTIFICATION':

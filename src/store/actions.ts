@@ -5,11 +5,6 @@ import type { CardRef } from '../types/game';
 export type GameAction =
   /** Player entered names on the setup screen */
   | { type: 'START_GAME'; playerNames: string[] }
-  /**
-   * Confirm the "pass device" screen.
-   * Transitions: peek-pass → peek-view, turn-pass → turn-idle, stick-pass → stick-offer
-   */
-  | { type: 'CONFIRM_PASS' }
   /** Player has finished memorising their bottom two cards */
   | { type: 'DONE_PEEKING' }
   /** Draw the top card from the deck */
@@ -36,7 +31,12 @@ export type GameAction =
   | { type: 'DONE_VIEWING' }
   /** Black King: skip the optional switch after looking */
   | { type: 'SKIP_BK_SWITCH' }
-  /** During sticking offer: player chooses whether to attempt a stick */
-  | { type: 'STICK_RESPONSE'; wants: boolean }
+  /**
+   * A player claims the right to stick in the stick-window.
+   * Only one player may stick per discard — first to claim wins.
+   */
+  | { type: 'CLAIM_STICK'; playerId: string }
+  /** Nobody sticks — advance to the next turn */
+  | { type: 'SKIP_STICK' }
   /** Clear the transient notification message */
   | { type: 'CLEAR_NOTIFICATION' };

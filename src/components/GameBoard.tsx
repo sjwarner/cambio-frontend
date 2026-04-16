@@ -13,7 +13,6 @@ interface Props {
 export default function GameBoard({ state, dispatch }: Props) {
   const notifTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auto-clear notification
   useEffect(() => {
     if (state.notification) {
       if (notifTimeout.current) clearTimeout(notifTimeout.current);
@@ -24,65 +23,45 @@ export default function GameBoard({ state, dispatch }: Props) {
   const currentPlayer = state.players[state.currentPlayerIndex];
   const topDiscard = state.discardPile[0] ?? null;
 
-  // ── Determine which slots are selectable ───────────────────────────────────
+  // ── Which slots are selectable for a given player ─────────────────────────
   function getSelectableSlots(playerId: string): Set<number> {
     const p = state.players.find((pl) => pl.id === playerId);
     if (!p) return new Set();
-    const filled = new Set(
-      p.hand.map((c, i) => (c ? i : -1)).filter((i) => i >= 0),
-    );
-
-    const { phase } = state;
+    const filled = new Set(p.hand.map((c, i) => (c ? i : -1)).filter((i) => i >= 0));
     const currentId = currentPlayer.id;
+    const { phase } = state;
 
-    // Swap drawn card with own hand
     if (phase === 'turn-drawn' && playerId === currentId) return filled;
-
-    // 7/8: look at own
     if (phase === 'special-look-own' && playerId === currentId) return filled;
-
-    // 9/10: look at other
     if (phase === 'special-look-other' && playerId !== currentId) return filled;
-
-    // J/Q step 1: any card from any player
     if (phase === 'special-blind-1') return filled;
-
-    // J/Q step 2: any card except the first selected
     if (phase === 'special-blind-2') {
       const first = state.special?.firstRef;
       if (!first) return filled;
       return new Set([...filled].filter((i) => !(playerId === first.playerId && i === first.slotIndex)));
     }
-
-    // Black King look: any card
     if (phase === 'special-bk-look') return filled;
-
-    // Black King switch: own card (not the looked card)
     if (phase === 'special-bk-switch' && playerId === currentId) {
       const lookedRef = state.special?.firstRef;
-      return new Set(
-        [...filled].filter(
-          (i) => !(lookedRef && playerId === lookedRef.playerId && i === lookedRef.slotIndex),
-        ),
-      );
+      return new Set([...filled].filter(
+        (i) => !(lookedRef && playerId === lookedRef.playerId && i === lookedRef.slotIndex),
+      ));
     }
-
-    // Stick select: any card from any player
-    if (phase === 'stick-select') return filled;
-
-    // Stick give: own card of the sticker
+    if (phase === 'stick-select') {
+      const stickerId = state.stick?.claimedBy;
+      if (!stickerId) return new Set();
+      // Sticker can pick from any hand
+      return filled;
+    }
     if (phase === 'stick-give') {
-      if (!state.stick) return new Set();
-      const stickerId = state.stick.checkOrder[state.stick.checkIndex];
+      const stickerId = state.stick?.claimedBy;
       if (playerId === stickerId) return filled;
     }
-
     return new Set();
   }
 
   function getRevealedSlots(playerId: string): Set<number> {
     const { phase } = state;
-    // Reveal drawn card display area — cards in hand stay face-down
     if (
       (phase === 'special-peek-reveal' || phase === 'special-bk-reveal') &&
       state.special?.firstRef?.playerId === playerId
@@ -100,43 +79,40 @@ export default function GameBoard({ state, dispatch }: Props) {
     }
   }
 
-  // ── Determine phase-specific instruction text ──────────────────────────────
+  // ── Instruction text ──────────────────────────────────────────────────────
   function getInstruction(): string {
     const name = currentPlayer.name;
     switch (state.phase) {
       case 'turn-idle':
-        return `${name}: draw a card or call Cambio.`;
+        return `${name}'s turn — draw a card or call Cambio.`;
       case 'turn-drawn':
-        return `${name}: discard the drawn card (triggers ability), or tap one of your cards to swap it in.`;
+        return `${name}: discard the drawn card (use its ability), or tap one of your cards to swap it in.`;
       case 'special-look-own':
         return `${name}: tap one of your face-down cards to peek at it.`;
       case 'special-look-other':
         return `${name}: tap any opponent's face-down card to peek at it.`;
       case 'special-peek-reveal':
-        return 'Memorise this card, then dismiss it.';
+        return `${name}: memorise this card, then dismiss it.`;
       case 'special-blind-1':
-        return `${name}: tap the first card to swap (any player).`;
+        return `${name}: tap the first card to blind-swap (any player).`;
       case 'special-blind-2':
         return `${name}: tap the second card to complete the swap.`;
       case 'special-bk-look':
         return `${name} (Black King): tap any card to look at it.`;
       case 'special-bk-reveal':
-        return 'Memorise this card. Swap it with one of your own, or skip.';
+        return `${name}: memorise this card. Swap it with one of your own, or skip.`;
       case 'special-bk-switch':
-        return `${name}: tap one of your own cards to swap with the looked card.`;
-      case 'stick-offer': {
-        const stickerId = state.stick?.checkOrder[state.stick.checkIndex];
-        const stickerName = state.players.find((p) => p.id === stickerId)?.name ?? '';
-        return `${stickerName}: do you want to stick on this discard (${topDiscard?.rank})?`;
+        return `${name}: tap one of your own cards to swap with the peeked card.`;
+      case 'stick-window': {
+        const rank = topDiscard?.rank ?? '?';
+        return `${rank} discarded! Anyone can stick — first to tap their name wins the window.`;
       }
       case 'stick-select': {
-        const stickerId = state.stick?.checkOrder[state.stick.checkIndex];
-        const stickerName = state.players.find((p) => p.id === stickerId)?.name ?? '';
-        return `${stickerName}: tap the card you think matches (${topDiscard?.rank}).`;
+        const stickerName = state.players.find((p) => p.id === state.stick?.claimedBy)?.name ?? '';
+        return `${stickerName}: tap the card you think matches the ${topDiscard?.rank}.`;
       }
       case 'stick-give': {
-        const stickerId = state.stick?.checkOrder[state.stick.checkIndex];
-        const stickerName = state.players.find((p) => p.id === stickerId)?.name ?? '';
+        const stickerName = state.players.find((p) => p.id === state.stick?.claimedBy)?.name ?? '';
         return `${stickerName}: tap one of your cards to give to the other player.`;
       }
       default:
@@ -144,10 +120,10 @@ export default function GameBoard({ state, dispatch }: Props) {
     }
   }
 
-  const instruction = getInstruction();
-
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className={styles.board}>
+
       {/* Notification toast */}
       {state.notification && (
         <div className={styles.notification}>{state.notification}</div>
@@ -158,32 +134,40 @@ export default function GameBoard({ state, dispatch }: Props) {
         <div className={styles.cambioBanner}>
           🔔 Cambio called by{' '}
           {state.players.find((p) => p.id === state.cambioCallerId)?.name}!{' '}
-          {state.turnsLeftAfterCambio} turn{state.turnsLeftAfterCambio !== 1 ? 's' : ''} remaining.
+          {state.turnsLeftAfterCambio} turn{state.turnsLeftAfterCambio !== 1 ? 's' : ''} left.
         </div>
       )}
 
       {/* Instruction bar */}
-      {instruction && <div className={styles.instruction}>{instruction}</div>}
+      <div className={styles.instruction}>{getInstruction()}</div>
 
-      {/* Opponents */}
-      <div className={styles.opponents}>
-        {state.players
-          .filter((p) => p.id !== currentPlayer.id)
-          .map((p) => (
-            <PlayerHand
-              key={p.id}
-              player={p}
-              revealedSlots={getRevealedSlots(p.id)}
-              selectableSlots={getSelectableSlots(p.id)}
-              onSelectSlot={handleSelectSlot}
-              compact
-            />
-          ))}
+      {/* All player hands — shown simultaneously */}
+      <div className={styles.handsGrid}>
+        {state.players.map((player) => {
+          const isCurrent = player.id === currentPlayer.id;
+          const isStickClaimant = state.stick?.claimedBy === player.id;
+          return (
+            <div
+              key={player.id}
+              className={`${styles.handWrapper} ${isCurrent ? styles.currentPlayer : ''} ${isStickClaimant ? styles.stickClaimant : ''}`}
+            >
+              {isCurrent && <div className={styles.turnBadge}>● TURN</div>}
+              <PlayerHand
+                player={player}
+                revealedSlots={getRevealedSlots(player.id)}
+                selectableSlots={getSelectableSlots(player.id)}
+                onSelectSlot={handleSelectSlot}
+                showLabel
+                compact={state.players.length > 3}
+              />
+            </div>
+          );
+        })}
       </div>
 
-      {/* Centre table area */}
+      {/* Centre table */}
       <div className={styles.table}>
-        {/* Deck */}
+        {/* Draw pile */}
         <div className={styles.pileGroup}>
           <div className={styles.pileLabel}>Draw pile</div>
           <button
@@ -204,47 +188,41 @@ export default function GameBoard({ state, dispatch }: Props) {
           <div className={styles.deckCount}>{state.deck.length} left</div>
         </div>
 
-        {/* Discard */}
+        {/* Discard pile */}
         <div className={styles.pileGroup}>
           <div className={styles.pileLabel}>Discard pile</div>
           <Card card={topDiscard} faceUp={true} />
         </div>
 
-        {/* Drawn card (if any) */}
+        {/* Drawn card */}
         {state.drawnCard && (
           <div className={styles.pileGroup}>
             <div className={styles.pileLabel}>You drew</div>
             <Card card={state.drawnCard} faceUp={true} />
-            <div className={styles.drawnActions}>
-              <button
-                className={styles.actionBtn}
-                onClick={() => dispatch({ type: 'DISCARD_DRAWN' })}
-              >
-                Discard it
-              </button>
-            </div>
+            <button
+              className={styles.actionBtn}
+              onClick={() => dispatch({ type: 'DISCARD_DRAWN' })}
+            >
+              Discard it
+            </button>
           </div>
         )}
       </div>
 
-      {/* Special reveal modal */}
+      {/* Special peek reveal modal */}
       {(state.phase === 'special-peek-reveal' || state.phase === 'special-bk-reveal') &&
         state.special?.revealedCard && (
           <div className={styles.revealModal}>
-            <p className={styles.revealTitle}>Your peek</p>
+            <p className={styles.revealTitle}>
+              {state.players[state.currentPlayerIndex].name}'s peek
+            </p>
             <Card card={state.special.revealedCard} faceUp={true} />
             <div className={styles.revealActions}>
-              <button
-                className={styles.actionBtn}
-                onClick={() => dispatch({ type: 'DONE_VIEWING' })}
-              >
+              <button className={styles.actionBtn} onClick={() => dispatch({ type: 'DONE_VIEWING' })}>
                 Got it
               </button>
               {state.phase === 'special-bk-reveal' && (
-                <button
-                  className={styles.actionBtnSecondary}
-                  onClick={() => dispatch({ type: 'SKIP_BK_SWITCH' })}
-                >
+                <button className={styles.actionBtnSecondary} onClick={() => dispatch({ type: 'SKIP_BK_SWITCH' })}>
                   Skip swap
                 </button>
               )}
@@ -252,25 +230,39 @@ export default function GameBoard({ state, dispatch }: Props) {
           </div>
         )}
 
-      {/* Stick offer controls */}
-      {state.phase === 'stick-offer' && (
-        <div className={styles.stickControls}>
-          <button
-            className={styles.actionBtn}
-            onClick={() => dispatch({ type: 'STICK_RESPONSE', wants: true })}
-          >
-            Yes, stick!
-          </button>
-          <button
-            className={styles.actionBtnSecondary}
-            onClick={() => dispatch({ type: 'STICK_RESPONSE', wants: false })}
-          >
-            Pass
-          </button>
+      {/* ── Stick window ──────────────────────────────────────────────────── */}
+      {state.phase === 'stick-window' && state.stick && (
+        <div className={styles.stickWindow}>
+          <div className={styles.stickTop}>
+            <span className={styles.stickTitle}>
+              Stick on <strong>{topDiscard?.rank}</strong>?
+            </span>
+            <span className={styles.stickSub}>First to tap their name wins the window!</span>
+          </div>
+          <div className={styles.stickButtons}>
+            {state.stick.eligibleIds.map((pid) => {
+              const name = state.players.find((p) => p.id === pid)?.name ?? '';
+              return (
+                <button
+                  key={pid}
+                  className={styles.stickPlayerBtn}
+                  onClick={() => dispatch({ type: 'CLAIM_STICK', playerId: pid })}
+                >
+                  {name}
+                </button>
+              );
+            })}
+            <button
+              className={styles.actionBtnSecondary}
+              onClick={() => dispatch({ type: 'SKIP_STICK' })}
+            >
+              No one sticks
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Cambio / turn-idle actions */}
+      {/* Cambio button */}
       {state.phase === 'turn-idle' && !state.cambioCallerId && (
         <div className={styles.turnActions}>
           <button
@@ -281,17 +273,6 @@ export default function GameBoard({ state, dispatch }: Props) {
           </button>
         </div>
       )}
-
-      {/* Current player's hand */}
-      <div className={styles.currentHand}>
-        <PlayerHand
-          player={currentPlayer}
-          revealedSlots={getRevealedSlots(currentPlayer.id)}
-          selectableSlots={getSelectableSlots(currentPlayer.id)}
-          onSelectSlot={handleSelectSlot}
-          showLabel={true}
-        />
-      </div>
     </div>
   );
 }
