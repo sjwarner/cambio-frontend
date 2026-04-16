@@ -8,9 +8,13 @@ import styles from './GameBoard.module.css';
 interface Props {
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
+  /** Set in online mode — the player ID belonging to this browser. */
+  myPlayerId?: string;
 }
 
-export default function GameBoard({ state, dispatch }: Props) {
+export default function GameBoard({ state, dispatch, myPlayerId }: Props) {
+  // In online mode: is it currently this player's turn?
+  const isMyTurn = !myPlayerId || state.players[state.currentPlayerIndex]?.id === myPlayerId;
   const notifTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -82,40 +86,51 @@ export default function GameBoard({ state, dispatch }: Props) {
   // ── Instruction text ──────────────────────────────────────────────────────
   function getInstruction(): string {
     const name = currentPlayer.name;
+    // In online mode, use "You" when addressing the active player directly.
+    const you = isMyTurn ? 'You' : name;
+    const your = isMyTurn ? 'your' : `${name}'s`;
     switch (state.phase) {
       case 'turn-idle':
-        return `${name}'s turn — draw a card or call Cambio.`;
+        return isMyTurn
+          ? `Your turn — draw a card or call Cambio.`
+          : `${name}'s turn — draw a card or call Cambio.`;
       case 'turn-drawn':
-        return `${name}: discard the drawn card (use its ability), or hide it and swap it into your hand.`;
+        return `${you}: discard the drawn card (use its ability), or hide it and swap it into ${your} hand.`;
       case 'turn-drawn-selecting':
-        return `${name}: tap one of your cards to swap the drawn card in (the card there will be discarded).`;
+        return `${you}: tap one of ${your} cards to swap the drawn card in (the card there will be discarded).`;
       case 'special-look-own':
-        return `${name}: tap one of your face-down cards to peek at it.`;
+        return `${you}: tap one of ${your} face-down cards to peek at it.`;
       case 'special-look-other':
-        return `${name}: tap any opponent's face-down card to peek at it.`;
+        return `${you}: tap any opponent's face-down card to peek at it.`;
       case 'special-peek-reveal':
-        return `${name}: memorise this card, then dismiss it.`;
+        return `${you}: memorise this card, then dismiss it.`;
       case 'special-blind-1':
-        return `${name}: tap the first card to blind-swap (any player).`;
+        return `${you}: tap the first card to blind-swap (any player).`;
       case 'special-blind-2':
-        return `${name}: tap the second card to complete the swap.`;
+        return `${you}: tap the second card to complete the swap.`;
       case 'special-bk-look':
-        return `${name} (Black King): tap any card to look at it.`;
+        return `${you} (Black King): tap any card to look at it.`;
       case 'special-bk-reveal':
-        return `${name}: memorise this card. Swap it with one of your own, or skip.`;
+        return `${you}: memorise this card. Swap it with one of ${your} own, or skip.`;
       case 'special-bk-switch':
-        return `${name}: tap one of your own cards to swap with the peeked card.`;
+        return `${you}: tap one of ${your} own cards to swap with the peeked card.`;
       case 'snap-window': {
         const rank = topDiscard?.rank ?? '?';
-        return `${rank} discarded! Anyone can snap — first to tap their name wins the window.`;
+        return `${rank} discarded! Tap "Snap!" if you have a matching card.`;
       }
       case 'snap-select': {
         const snaperName = state.players.find((p) => p.id === state.snap?.claimedBy)?.name ?? '';
-        return `${snaperName}: tap the card you think matches the ${topDiscard?.rank}.`;
+        const isMySnap = myPlayerId ? state.snap?.claimedBy === myPlayerId : true;
+        return isMySnap
+          ? `You snapped — tap the card you think matches the ${topDiscard?.rank}.`
+          : `${snaperName} snapped — they're choosing a card to match the ${topDiscard?.rank}.`;
       }
       case 'snap-give': {
         const snaperName = state.players.find((p) => p.id === state.snap?.claimedBy)?.name ?? '';
-        return `${snaperName}: tap one of your cards to give to the other player.`;
+        const isMySnap = myPlayerId ? state.snap?.claimedBy === myPlayerId : true;
+        return isMySnap
+          ? `You: tap one of your cards to give to the other player.`
+          : `${snaperName}: choosing a card to give away.`;
       }
       default:
         return '';
@@ -223,13 +238,12 @@ export default function GameBoard({ state, dispatch }: Props) {
         )}
       </div>
 
-      {/* Special peek reveal modal */}
+      {/* Special peek reveal modal — only shown to the acting player in online mode */}
       {(state.phase === 'special-peek-reveal' || state.phase === 'special-bk-reveal') &&
-        state.special?.revealedCard && (
+        state.special?.revealedCard &&
+        isMyTurn && (
           <div className={styles.revealModal}>
-            <p className={styles.revealTitle}>
-              {state.players[state.currentPlayerIndex].name}'s peek
-            </p>
+            <p className={styles.revealTitle}>Your peek</p>
             <Card card={state.special.revealedCard} faceUp={true} />
             <div className={styles.revealActions}>
               <button className={styles.actionBtn} onClick={() => dispatch({ type: 'DONE_VIEWING' })}>
@@ -244,6 +258,14 @@ export default function GameBoard({ state, dispatch }: Props) {
           </div>
         )}
 
+      {/* Waiting indicator for non-acting players during a peek reveal */}
+      {(state.phase === 'special-peek-reveal' || state.phase === 'special-bk-reveal') &&
+        !isMyTurn && (
+          <div className={styles.revealModal}>
+            <p className={styles.revealTitle}>{currentPlayer.name} is peeking…</p>
+          </div>
+        )}
+
       {/* ── Snap window ──────────────────────────────────────────────────── */}
       {state.phase === 'snap-window' && state.snap && (
         <div className={styles.snapWindow}>
@@ -251,21 +273,36 @@ export default function GameBoard({ state, dispatch }: Props) {
             <span className={styles.snapTitle}>
               Snap on <strong>{topDiscard?.rank}</strong>?
             </span>
-            <span className={styles.snapSub}>First to tap their name wins the window!</span>
+            {myPlayerId ? (
+              <span className={styles.snapSub}>Tap "Snap!" to claim the window.</span>
+            ) : (
+              <span className={styles.snapSub}>First to tap their name wins the window!</span>
+            )}
           </div>
           <div className={styles.snapButtons}>
-            {state.snap.eligibleIds.map((pid) => {
-              const name = state.players.find((p) => p.id === pid)?.name ?? '';
-              return (
-                <button
-                  key={pid}
-                  className={styles.snapPlayerBtn}
-                  onClick={() => dispatch({ type: 'CLAIM_SNAP', playerId: pid })}
-                >
-                  {name}
-                </button>
-              );
-            })}
+            {myPlayerId ? (
+              // Online mode: each player only claims for themselves.
+              <button
+                className={styles.snapPlayerBtn}
+                onClick={() => dispatch({ type: 'CLAIM_SNAP', playerId: myPlayerId })}
+              >
+                Snap!
+              </button>
+            ) : (
+              // Local mode: show all player name buttons.
+              state.snap.eligibleIds.map((pid) => {
+                const name = state.players.find((p) => p.id === pid)?.name ?? '';
+                return (
+                  <button
+                    key={pid}
+                    className={styles.snapPlayerBtn}
+                    onClick={() => dispatch({ type: 'CLAIM_SNAP', playerId: pid })}
+                  >
+                    {name}
+                  </button>
+                );
+              })
+            )}
             <button
               className={styles.actionBtnSecondary}
               onClick={() => dispatch({ type: 'SKIP_SNAP' })}
