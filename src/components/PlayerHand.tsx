@@ -8,8 +8,10 @@ interface Props {
   revealedSlots?: Set<number>;
   /** Slots that are clickable */
   selectableSlots?: Set<number>;
-  /** Slot indices currently selected (highlighted) */
+  /** Slot indices currently selected (amber glow — active selection) */
   selectedSlots?: Set<number>;
+  /** Slot indices to highlight in green (e.g. just-swapped) */
+  highlightedSlots?: Set<number>;
   onSelectSlot?: (ref: CardRef) => void;
   /** Show player name label */
   showLabel?: boolean;
@@ -22,6 +24,7 @@ export default function PlayerHand({
   revealedSlots = new Set(),
   selectableSlots = new Set(),
   selectedSlots = new Set(),
+  highlightedSlots = new Set(),
   onSelectSlot,
   showLabel = true,
   compact = false,
@@ -44,6 +47,7 @@ export default function PlayerHand({
             const faceUp = revealedSlots.has(slotIndex);
             const selectable = selectableSlots.has(slotIndex) && card !== null;
             const selected = selectedSlots.has(slotIndex);
+            const highlighted = highlightedSlots.has(slotIndex);
 
             return (
               <Card
@@ -52,6 +56,7 @@ export default function PlayerHand({
                 faceUp={faceUp}
                 selectable={selectable}
                 selected={selected}
+                highlighted={highlighted}
                 onClick={() =>
                   onSelectSlot?.({ playerId: player.id, slotIndex })
                 }

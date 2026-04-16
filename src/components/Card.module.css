@@ -52,6 +52,13 @@
   transform: translateY(-6px);
 }
 
+/* Highlighted — used to show the last-swapped slot to all players */
+.highlighted {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 0 3px #22c55e, 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  transform: translateY(-4px);
+}
+
 /* Dimmed */
 .dimmed {
   opacity: 0.4;

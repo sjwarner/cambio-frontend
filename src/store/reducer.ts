@@ -20,6 +20,7 @@ export const INITIAL_STATE: GameState = {
   scores: [],
   winnerId: null,
   notification: null,
+  lastSwappedRef: null,
 };
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
@@ -93,6 +94,7 @@ function advanceToNextTurn(state: GameState): GameState {
       drawnCard: null,
       special: null,
       snap: null,
+      lastSwappedRef: null,
       turnsLeftAfterCambio: remaining,
     };
   }
@@ -104,6 +106,7 @@ function advanceToNextTurn(state: GameState): GameState {
     drawnCard: null,
     special: null,
     snap: null,
+    lastSwappedRef: null,
   };
 }
 
@@ -221,7 +224,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       const discardPile = [handCard, ...state.discardPile];
       const players = setCard(state.players, cp.id, action.slotIndex, state.drawnCard);
-      return beginSnapPhase({ ...state, players, discardPile, drawnCard: null }, cp.id);
+      const lastSwappedRef = { playerId: cp.id, slotIndex: action.slotIndex };
+      return beginSnapPhase({ ...state, players, discardPile, drawnCard: null, lastSwappedRef }, cp.id);
     }
 
     // ── Card selection (multi-purpose) ────────────────────────────────────────

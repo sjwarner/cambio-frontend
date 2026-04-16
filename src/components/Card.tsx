@@ -8,6 +8,7 @@ interface Props {
   selected?: boolean;
   selectable?: boolean;
   dimmed?: boolean;
+  highlighted?: boolean;
   onClick?: () => void;
   label?: string; // aria-label override
 }
@@ -34,6 +35,7 @@ export default function Card({
   selected = false,
   selectable = false,
   dimmed = false,
+  highlighted = false,
   onClick,
   label,
 }: Props) {
@@ -50,6 +52,7 @@ export default function Card({
     styles.card,
     faceUp ? styles.faceUp : styles.faceDown,
     selected ? styles.selected : '',
+    highlighted ? styles.highlighted : '',
     selectable ? styles.selectable : '',
     dimmed ? styles.dimmed : '',
     faceUp ? suitClass : '',

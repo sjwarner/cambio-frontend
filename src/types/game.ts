@@ -147,4 +147,7 @@ export interface GameState {
 
   /** Transient UI message (e.g. "Wrong card! Penalty dealt.") */
   notification: string | null;
+
+  /** The slot most recently swapped this turn — highlighted for all players */
+  lastSwappedRef: CardRef | null;
 }

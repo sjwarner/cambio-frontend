@@ -182,6 +182,11 @@ export default function GameBoard({ state, dispatch, myPlayerId }: Props) {
                 player={player}
                 revealedSlots={getRevealedSlots(player.id)}
                 selectableSlots={getSelectableSlots(player.id)}
+                highlightedSlots={
+                  state.lastSwappedRef?.playerId === player.id
+                    ? new Set([state.lastSwappedRef.slotIndex])
+                    : undefined
+                }
                 onSelectSlot={handleSelectSlot}
                 showLabel
                 compact={state.players.length > 3}
