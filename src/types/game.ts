@@ -74,6 +74,8 @@ export type GamePhase =
   | 'turn-idle'
   // Player drew a card, choosing what to do with it
   | 'turn-drawn'
+  // Player confirmed they've seen the drawn card; now picking which hand slot to swap (card is hidden)
+  | 'turn-drawn-selecting'
   // 7/8 — pick one of your own cards to peek at
   | 'special-look-own'
   // 9/10 — pick any opponent's card to peek at

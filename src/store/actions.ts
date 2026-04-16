@@ -27,6 +27,8 @@ export type GameAction =
    * black-king steps, snap-select, and snap-give.
    */
   | { type: 'SELECT_CARD'; ref: CardRef }
+  /** Player has seen the drawn card and wants to hide it before picking a swap slot */
+  | { type: 'HIDE_DRAWN_CARD' }
   /** Dismiss a revealed card after peeking (7/8, 9/10, black-king reveal) */
   | { type: 'DONE_VIEWING' }
   /** Black King: skip the optional switch after looking */

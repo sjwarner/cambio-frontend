@@ -205,6 +205,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...base, phase: phaseMap[ability], special };
     }
 
+    // ── Player hides drawn card before picking swap slot ──────────────────────
+    case 'HIDE_DRAWN_CARD': {
+      if (state.phase !== 'turn-drawn') return state;
+      return { ...state, phase: 'turn-drawn-selecting' };
+    }
+
     // ── Keep drawn card: swap into hand slot ──────────────────────────────────
     case 'SWAP_DRAWN_WITH_SLOT': {
       if (!state.drawnCard) return state;

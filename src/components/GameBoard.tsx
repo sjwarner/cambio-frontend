@@ -31,7 +31,7 @@ export default function GameBoard({ state, dispatch }: Props) {
     const currentId = currentPlayer.id;
     const { phase } = state;
 
-    if (phase === 'turn-drawn' && playerId === currentId) return filled;
+    if (phase === 'turn-drawn-selecting' && playerId === currentId) return filled;
     if (phase === 'special-look-own' && playerId === currentId) return filled;
     if (phase === 'special-look-other' && playerId !== currentId) return filled;
     if (phase === 'special-blind-1') return filled;
@@ -72,7 +72,7 @@ export default function GameBoard({ state, dispatch }: Props) {
   }
 
   function handleSelectSlot(ref: CardRef) {
-    if (state.phase === 'turn-drawn') {
+    if (state.phase === 'turn-drawn-selecting') {
       dispatch({ type: 'SWAP_DRAWN_WITH_SLOT', slotIndex: ref.slotIndex });
     } else {
       dispatch({ type: 'SELECT_CARD', ref });
@@ -86,7 +86,9 @@ export default function GameBoard({ state, dispatch }: Props) {
       case 'turn-idle':
         return `${name}'s turn — draw a card or call Cambio.`;
       case 'turn-drawn':
-        return `${name}: discard the drawn card (use its ability), or tap one of your cards to swap it in.`;
+        return `${name}: discard the drawn card (use its ability), or hide it and swap it into your hand.`;
+      case 'turn-drawn-selecting':
+        return `${name}: tap one of your cards to swap the drawn card in (the card there will be discarded).`;
       case 'special-look-own':
         return `${name}: tap one of your face-down cards to peek at it.`;
       case 'special-look-other':
@@ -195,7 +197,7 @@ export default function GameBoard({ state, dispatch }: Props) {
         </div>
 
         {/* Drawn card */}
-        {state.drawnCard && (
+        {state.drawnCard && state.phase === 'turn-drawn' && (
           <div className={styles.pileGroup}>
             <div className={styles.pileLabel}>You drew</div>
             <Card card={state.drawnCard} faceUp={true} />
@@ -205,6 +207,18 @@ export default function GameBoard({ state, dispatch }: Props) {
             >
               Discard it
             </button>
+            <button
+              className={styles.actionBtnSecondary}
+              onClick={() => dispatch({ type: 'HIDE_DRAWN_CARD' })}
+            >
+              Hide it — swap into hand
+            </button>
+          </div>
+        )}
+        {state.drawnCard && state.phase === 'turn-drawn-selecting' && (
+          <div className={styles.pileGroup}>
+            <div className={styles.pileLabel}>Your drawn card</div>
+            <Card card={state.drawnCard} faceUp={false} />
           </div>
         )}
       </div>
