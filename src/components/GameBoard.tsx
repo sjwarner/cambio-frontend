@@ -214,25 +214,36 @@ export default function GameBoard({ state, dispatch, myPlayerId }: Props) {
         {/* Drawn card */}
         {state.drawnCard && state.phase === 'turn-drawn' && (
           <div className={styles.pileGroup}>
-            <div className={styles.pileLabel}>You drew</div>
-            <Card card={state.drawnCard} faceUp={true} />
-            <button
-              className={styles.actionBtn}
-              onClick={() => dispatch({ type: 'DISCARD_DRAWN' })}
-            >
-              Discard it
-            </button>
-            <button
-              className={styles.actionBtnSecondary}
-              onClick={() => dispatch({ type: 'HIDE_DRAWN_CARD' })}
-            >
-              Hide it — swap into hand
-            </button>
+            {isMyTurn ? (
+              <>
+                <div className={styles.pileLabel}>You drew</div>
+                <Card card={state.drawnCard} faceUp={true} />
+                <button
+                  className={styles.actionBtn}
+                  onClick={() => dispatch({ type: 'DISCARD_DRAWN' })}
+                >
+                  Discard it
+                </button>
+                <button
+                  className={styles.actionBtnSecondary}
+                  onClick={() => dispatch({ type: 'HIDE_DRAWN_CARD' })}
+                >
+                  Hide it — swap into hand
+                </button>
+              </>
+            ) : (
+              <>
+                <div className={styles.pileLabel}>{currentPlayer.name} drew</div>
+                <Card card={state.drawnCard} faceUp={false} />
+              </>
+            )}
           </div>
         )}
         {state.drawnCard && state.phase === 'turn-drawn-selecting' && (
           <div className={styles.pileGroup}>
-            <div className={styles.pileLabel}>Your drawn card</div>
+            <div className={styles.pileLabel}>
+              {isMyTurn ? 'Your drawn card' : `${currentPlayer.name}'s drawn card`}
+            </div>
             <Card card={state.drawnCard} faceUp={false} />
           </div>
         )}

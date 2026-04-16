@@ -8,19 +8,19 @@ interface Props {
   playerIndex: number;
   totalPlayers: number;
   onDone: () => void;
+  /** Online mode: skip the "look away" shield and go straight to the cards. */
+  skipShield?: boolean;
 }
 
 /**
- * Initial-peek shield screen.
+ * Initial-peek screen.
  *
- * Phase 1 – "Others look away": player taps when ready to see their cards.
- * Phase 2 – Cards revealed: player memorises, then taps "Done".
- *
- * All other players should avert their eyes during phase 2 — just like the
- * physical game. No device hand-off needed.
+ * Local mode: shows a shield phase ("others look away") before revealing cards.
+ * Online mode (skipShield): goes straight to the cards — each player is on
+ * their own device so no shielding is needed.
  */
-export default function PeekView({ player, playerIndex, totalPlayers, onDone }: Props) {
-  const [revealed, setRevealed] = useState(false);
+export default function PeekView({ player, playerIndex, totalPlayers, onDone, skipShield }: Props) {
+  const [revealed, setRevealed] = useState(skipShield ?? false);
 
   return (
     <div className={styles.overlay}>

@@ -64,6 +64,7 @@ function OnlineGame({
           playerIndex={peekPlayerIndex}
           totalPlayers={players.length}
           onDone={() => dispatch({ type: 'DONE_PEEKING' })}
+          skipShield
         />
       );
     }
