@@ -20,7 +20,7 @@ export const INITIAL_STATE: GameState = {
   scores: [],
   winnerId: null,
   notification: null,
-  lastSwappedRef: null,
+  lastActionRefs: [],
 };
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ function advanceToNextTurn(state: GameState): GameState {
       drawnCard: null,
       special: null,
       snap: null,
-      lastSwappedRef: null,
+      lastActionRefs: [],
       turnsLeftAfterCambio: remaining,
     };
   }
@@ -106,7 +106,7 @@ function advanceToNextTurn(state: GameState): GameState {
     drawnCard: null,
     special: null,
     snap: null,
-    lastSwappedRef: null,
+    lastActionRefs: [],
   };
 }
 
@@ -224,8 +224,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       const discardPile = [handCard, ...state.discardPile];
       const players = setCard(state.players, cp.id, action.slotIndex, state.drawnCard);
-      const lastSwappedRef = { playerId: cp.id, slotIndex: action.slotIndex };
-      return beginSnapPhase({ ...state, players, discardPile, drawnCard: null, lastSwappedRef }, cp.id);
+      const lastActionRefs = [{ playerId: cp.id, slotIndex: action.slotIndex }];
+      return beginSnapPhase({ ...state, players, discardPile, drawnCard: null, lastActionRefs }, cp.id);
     }
 
     // ── Card selection (multi-purpose) ────────────────────────────────────────
@@ -270,7 +270,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         if (!first) return state;
         if (ref.playerId === first.playerId && ref.slotIndex === first.slotIndex) return state;
         const players = swapCards(state.players, first, ref);
-        return afterSpecial({ ...state, players });
+        return afterSpecial({ ...state, players, lastActionRefs: [first, ref] });
       }
 
       if (state.phase === 'special-bk-look') {
@@ -289,7 +289,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         if (!lookedRef) return state;
         if (ref.playerId === lookedRef.playerId && ref.slotIndex === lookedRef.slotIndex) return state;
         const players = swapCards(state.players, lookedRef, ref);
-        return afterSpecial({ ...state, players });
+        return afterSpecial({ ...state, players, lastActionRefs: [lookedRef, ref] });
       }
 
       // ── snap-select ───────────────────────────────────────────────────────
