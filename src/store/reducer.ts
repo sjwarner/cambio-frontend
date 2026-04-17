@@ -334,7 +334,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         } else {
           // Wrong snap — deal penalty to snapper
           const penaltyState = dealPenalty(state, snapperId);
-          const retriesLeft = (state.snap?.retriesLeft ?? 0) - 1;
+          const retriesLeft = state.snap?.retriesLeft ?? 0;
 
           if (retriesLeft > 0) {
             // Reopen the snap window for all players (including the wrong snapper)
