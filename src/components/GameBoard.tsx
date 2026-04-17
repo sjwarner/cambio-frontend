@@ -343,11 +343,6 @@ export default function GameBoard({ state, dispatch, myPlayerId }: Props) {
               <button className={styles.actionBtn} onClick={() => dispatch({ type: 'DONE_VIEWING' })}>
                 Got it
               </button>
-              {state.phase === 'special-bk-reveal' && (
-                <button className={styles.actionBtnSecondary} onClick={() => dispatch({ type: 'SKIP_BK_SWITCH' })}>
-                  Skip swap
-                </button>
-              )}
             </div>
           </div>
         )}
