@@ -25,8 +25,10 @@ export default function GameBoard({ state, dispatch, myPlayerId }: Props) {
       ? true
       : myPlayerId !== null && state.players[state.currentPlayerIndex]?.id === myPlayerId;
   const notifTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // FLIP animation: positions captured before a swap dispatch, consumed after re-render
-  const flipSnapshot = useRef<Map<string, DOMRect> | null>(null);
+  // FLIP animation state
+  const prevCardPositions = useRef<Map<string, DOMRect>>(new Map());
+  const prevLastActionKey = useRef<string>('');
+  const prevDiscardTopId = useRef<string | null>(null);
 
   useEffect(() => {
     if (state.notification) {
@@ -39,41 +41,66 @@ export default function GameBoard({ state, dispatch, myPlayerId }: Props) {
   const topDiscard = state.discardPile[0] ?? null;
 
   // ── Which slots are selectable for a given player ─────────────────────────
-  // Capture pre-swap positions by card ID so useLayoutEffect can FLIP them
-  function captureForFlip(cardIds: string[]) {
-    const snap = new Map<string, DOMRect>();
-    cardIds.forEach((id) => {
-      const el = document.querySelector(`[data-card-id="${id}"]`) as HTMLElement | null;
-      if (el) snap.set(id, el.getBoundingClientRect());
-    });
-    flipSnapshot.current = snap;
-  }
-
-  // After re-render: apply inverse transform so cards appear at old position, then animate forward
-  useLayoutEffect(() => {
-    const snap = flipSnapshot.current;
-    if (!snap || snap.size === 0) return;
-    flipSnapshot.current = null;
-
-    snap.forEach((from, cardId) => {
-      const el = document.querySelector(`[data-card-id="${cardId}"]`) as HTMLElement | null;
-      if (!el) return;
-      const to = el.getBoundingClientRect();
-      const dx = from.left - to.left;
-      const dy = from.top - to.top;
-      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
-
-      el.style.transition = 'none';
-      el.style.transform = `translate(${dx}px, ${dy}px)`;
-      el.style.zIndex = '50';
+  function flipCard(cardId: string) {
+    const from = prevCardPositions.current.get(cardId);
+    if (!from) return;
+    const el = document.querySelector(`[data-card-id="${cardId}"]`) as HTMLElement | null;
+    if (!el) return;
+    const to = el.getBoundingClientRect();
+    const dx = from.left - to.left;
+    const dy = from.top - to.top;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+    el.style.transition = 'none';
+    el.style.transform = `translate(${dx}px, ${dy}px)`;
+    el.style.zIndex = '50';
+    requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          el.style.transition = 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
-          el.style.transform = '';
-          setTimeout(() => { el.style.zIndex = ''; }, 550);
-        });
+        el.style.transition = 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        el.style.transform = '';
+        setTimeout(() => { el.style.zIndex = ''; }, 550);
       });
     });
+  }
+
+  // Runs after every render. Detects card movements via lastActionRefs and discard pile
+  // changes, then animates using positions stored from the previous render.
+  useLayoutEffect(() => {
+    const actionKey = JSON.stringify(state.lastActionRefs);
+    const discardTopId = state.discardPile[0]?.id ?? null;
+
+    // Animate cards that moved to new hand slots (swap/keep actions)
+    if (actionKey !== prevLastActionKey.current && state.lastActionRefs.length > 0) {
+      state.lastActionRefs.forEach(({ playerId, slotIndex }) => {
+        const card = state.players.find((p) => p.id === playerId)?.hand[slotIndex];
+        if (card) flipCard(card.id);
+      });
+    }
+
+    // Animate card that just arrived at the top of the discard pile
+    if (discardTopId && discardTopId !== prevDiscardTopId.current) {
+      flipCard(discardTopId);
+    }
+
+    prevLastActionKey.current = actionKey;
+    prevDiscardTopId.current = discardTopId;
+
+    // Snapshot positions of all visible cards for the next render's FLIP
+    const snapshot = prevCardPositions.current;
+    state.players.forEach((p) =>
+      p.hand.forEach((c) => {
+        if (!c) return;
+        const el = document.querySelector(`[data-card-id="${c.id}"]`) as HTMLElement | null;
+        if (el) snapshot.set(c.id, el.getBoundingClientRect());
+      }),
+    );
+    if (state.drawnCard) {
+      const el = document.querySelector(`[data-card-id="${state.drawnCard.id}"]`) as HTMLElement | null;
+      if (el) snapshot.set(state.drawnCard.id, el.getBoundingClientRect());
+    }
+    if (state.discardPile[0]) {
+      const el = document.querySelector(`[data-card-id="${state.discardPile[0].id}"]`) as HTMLElement | null;
+      if (el) snapshot.set(state.discardPile[0].id, el.getBoundingClientRect());
+    }
   });
 
   function getSelectableSlots(playerId: string): Set<number> {
@@ -125,33 +152,10 @@ export default function GameBoard({ state, dispatch, myPlayerId }: Props) {
 
   function handleSelectSlot(ref: CardRef) {
     if (state.phase === 'turn-drawn-selecting') {
-      // Animate: drawn card → slot, slot card → discard pile
-      if (state.drawnCard) {
-        const cp = state.players[state.currentPlayerIndex];
-        const slotCard = cp.hand[ref.slotIndex];
-        captureForFlip(slotCard ? [state.drawnCard.id, slotCard.id] : [state.drawnCard.id]);
-      }
       dispatch({ type: 'SWAP_DRAWN_WITH_SLOT', slotIndex: ref.slotIndex });
-      return;
+    } else {
+      dispatch({ type: 'SELECT_CARD', ref });
     }
-
-    // J/Q blind swap step 2: animate both cards flying to swapped positions
-    if (state.phase === 'special-blind-2' && state.special?.firstRef) {
-      const first = state.special.firstRef;
-      const cardA = state.players.find((p) => p.id === first.playerId)?.hand[first.slotIndex];
-      const cardB = state.players.find((p) => p.id === ref.playerId)?.hand[ref.slotIndex];
-      if (cardA && cardB) captureForFlip([cardA.id, cardB.id]);
-    }
-
-    // Black King switch: animate looked-at card and chosen card swapping
-    if (state.phase === 'special-bk-switch' && state.special?.firstRef) {
-      const first = state.special.firstRef;
-      const cardA = state.players.find((p) => p.id === first.playerId)?.hand[first.slotIndex];
-      const cardB = state.players.find((p) => p.id === ref.playerId)?.hand[ref.slotIndex];
-      if (cardA && cardB) captureForFlip([cardA.id, cardB.id]);
-    }
-
-    dispatch({ type: 'SELECT_CARD', ref });
   }
 
   // ── Instruction text ──────────────────────────────────────────────────────
