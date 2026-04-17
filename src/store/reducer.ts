@@ -119,6 +119,7 @@ function beginSnapPhase(state: GameState, discarderId: string): GameState {
     claimedBy: null,
     targetRef: null,
     passedIds: [],
+    retriesLeft: 1,
   };
   return { ...state, phase: 'snap-window', snap, special: null };
 }
@@ -331,8 +332,31 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             };
           }
         } else {
-          // Wrong — penalty
+          // Wrong snap — deal penalty to snapper
           const penaltyState = dealPenalty(state, snapperId);
+          const retriesLeft = (state.snap?.retriesLeft ?? 0) - 1;
+
+          if (retriesLeft > 0) {
+            // Reopen the snap window for everyone except the wrong snapper
+            const eligibleIds = buildEligibleIds(state.players).filter((id) => id !== snapperId);
+            if (eligibleIds.length > 0) {
+              const snap: SnapState = {
+                eligibleIds,
+                discarderId: state.snap!.discarderId,
+                claimedBy: null,
+                targetRef: null,
+                passedIds: [],
+                retriesLeft: retriesLeft,
+              };
+              return {
+                ...penaltyState,
+                phase: 'snap-window',
+                snap,
+                notification: `Wrong! ${snapperName} receives a penalty card. Others may still snap.`,
+              };
+            }
+          }
+
           return advanceToNextTurn({
             ...penaltyState,
             snap: null,

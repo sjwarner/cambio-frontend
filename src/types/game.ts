@@ -63,6 +63,12 @@ export interface SnapState {
   targetRef: CardRef | null;
   /** Players who have passed (online: window closes when all eligibleIds have passed) */
   passedIds: string[];
+  /**
+   * How many more times a wrong snap can reopen the window.
+   * Starts at 1 so one incorrect snap is followed by one more chance for others.
+   * When 0, a wrong snap ends the turn immediately.
+   */
+  retriesLeft: number;
 }
 
 // ─── Game phases ──────────────────────────────────────────────────────────────
