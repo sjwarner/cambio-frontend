@@ -337,24 +337,21 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           const retriesLeft = (state.snap?.retriesLeft ?? 0) - 1;
 
           if (retriesLeft > 0) {
-            // Reopen the snap window for everyone except the wrong snapper
-            const eligibleIds = buildEligibleIds(state.players).filter((id) => id !== snapperId);
-            if (eligibleIds.length > 0) {
-              const snap: SnapState = {
-                eligibleIds,
-                discarderId: state.snap!.discarderId,
-                claimedBy: null,
-                targetRef: null,
-                passedIds: [],
-                retriesLeft: retriesLeft,
-              };
-              return {
-                ...penaltyState,
-                phase: 'snap-window',
-                snap,
-                notification: `Wrong! ${snapperName} receives a penalty card. Others may still snap.`,
-              };
-            }
+            // Reopen the snap window for all players (including the wrong snapper)
+            const snap: SnapState = {
+              eligibleIds: buildEligibleIds(penaltyState.players),
+              discarderId: state.snap!.discarderId,
+              claimedBy: null,
+              targetRef: null,
+              passedIds: [],
+              retriesLeft: retriesLeft,
+            };
+            return {
+              ...penaltyState,
+              phase: 'snap-window',
+              snap,
+              notification: `Wrong! ${snapperName} receives a penalty card. Anyone may still snap.`,
+            };
           }
 
           return advanceToNextTurn({
