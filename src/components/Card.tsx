@@ -92,7 +92,7 @@ export default function Card({
   // (e.g. a Card inside a clickable deck pile button).
   if (!selectable) {
     return (
-      <div className={classNames} aria-label={ariaLabel} role="img">
+      <div className={classNames} aria-label={ariaLabel} role="img" data-card-id={card.id}>
         {inner}
       </div>
     );
@@ -104,6 +104,7 @@ export default function Card({
       onClick={onClick}
       aria-label={ariaLabel}
       aria-pressed={selected}
+      data-card-id={card.id}
     >
       {inner}
     </button>

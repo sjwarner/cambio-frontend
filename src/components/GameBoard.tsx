@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useLayoutEffect } from 'react';
 import type { CardRef, GameState } from '../types/game';
 import type { GameAction } from '../store/actions';
 import Card from './Card';
@@ -25,6 +25,8 @@ export default function GameBoard({ state, dispatch, myPlayerId }: Props) {
       ? true
       : myPlayerId !== null && state.players[state.currentPlayerIndex]?.id === myPlayerId;
   const notifTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // FLIP animation: positions captured before a swap dispatch, consumed after re-render
+  const flipSnapshot = useRef<Map<string, DOMRect> | null>(null);
 
   useEffect(() => {
     if (state.notification) {
@@ -37,6 +39,43 @@ export default function GameBoard({ state, dispatch, myPlayerId }: Props) {
   const topDiscard = state.discardPile[0] ?? null;
 
   // ── Which slots are selectable for a given player ─────────────────────────
+  // Capture pre-swap positions by card ID so useLayoutEffect can FLIP them
+  function captureForFlip(cardIds: string[]) {
+    const snap = new Map<string, DOMRect>();
+    cardIds.forEach((id) => {
+      const el = document.querySelector(`[data-card-id="${id}"]`) as HTMLElement | null;
+      if (el) snap.set(id, el.getBoundingClientRect());
+    });
+    flipSnapshot.current = snap;
+  }
+
+  // After re-render: apply inverse transform so cards appear at old position, then animate forward
+  useLayoutEffect(() => {
+    const snap = flipSnapshot.current;
+    if (!snap || snap.size === 0) return;
+    flipSnapshot.current = null;
+
+    snap.forEach((from, cardId) => {
+      const el = document.querySelector(`[data-card-id="${cardId}"]`) as HTMLElement | null;
+      if (!el) return;
+      const to = el.getBoundingClientRect();
+      const dx = from.left - to.left;
+      const dy = from.top - to.top;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+
+      el.style.transition = 'none';
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      el.style.zIndex = '50';
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          el.style.transition = 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+          el.style.transform = '';
+          setTimeout(() => { el.style.zIndex = ''; }, 550);
+        });
+      });
+    });
+  });
+
   function getSelectableSlots(playerId: string): Set<number> {
     const p = state.players.find((pl) => pl.id === playerId);
     if (!p) return new Set();
@@ -86,10 +125,33 @@ export default function GameBoard({ state, dispatch, myPlayerId }: Props) {
 
   function handleSelectSlot(ref: CardRef) {
     if (state.phase === 'turn-drawn-selecting') {
+      // Animate: drawn card → slot, slot card → discard pile
+      if (state.drawnCard) {
+        const cp = state.players[state.currentPlayerIndex];
+        const slotCard = cp.hand[ref.slotIndex];
+        captureForFlip(slotCard ? [state.drawnCard.id, slotCard.id] : [state.drawnCard.id]);
+      }
       dispatch({ type: 'SWAP_DRAWN_WITH_SLOT', slotIndex: ref.slotIndex });
-    } else {
-      dispatch({ type: 'SELECT_CARD', ref });
+      return;
     }
+
+    // J/Q blind swap step 2: animate both cards flying to swapped positions
+    if (state.phase === 'special-blind-2' && state.special?.firstRef) {
+      const first = state.special.firstRef;
+      const cardA = state.players.find((p) => p.id === first.playerId)?.hand[first.slotIndex];
+      const cardB = state.players.find((p) => p.id === ref.playerId)?.hand[ref.slotIndex];
+      if (cardA && cardB) captureForFlip([cardA.id, cardB.id]);
+    }
+
+    // Black King switch: animate looked-at card and chosen card swapping
+    if (state.phase === 'special-bk-switch' && state.special?.firstRef) {
+      const first = state.special.firstRef;
+      const cardA = state.players.find((p) => p.id === first.playerId)?.hand[first.slotIndex];
+      const cardB = state.players.find((p) => p.id === ref.playerId)?.hand[ref.slotIndex];
+      if (cardA && cardB) captureForFlip([cardA.id, cardB.id]);
+    }
+
+    dispatch({ type: 'SELECT_CARD', ref });
   }
 
   // ── Instruction text ──────────────────────────────────────────────────────
