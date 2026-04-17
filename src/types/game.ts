@@ -94,12 +94,14 @@ export type GamePhase =
   | 'special-blind-1'
   // J/Q step 2 — pick the second card to blind-swap
   | 'special-blind-2'
-  // Black King step 1 — pick any card to look at
+  // Black King step 1 — pick any opponent's card to look at
   | 'special-bk-look'
-  // Black King step 2 — card revealed; choose to switch or skip
+  // Black King step 2 — card revealed; choose to swap (any two cards) or skip
   | 'special-bk-reveal'
-  // Black King step 3 — pick which of your own cards to swap with the looked card
+  // Black King step 3a — pick the first of two cards to swap (any player)
   | 'special-bk-switch'
+  // Black King step 3b — pick the second card to complete the swap
+  | 'special-bk-swap-2'
   // Shared snap window: all players shown simultaneously
   | 'snap-window'
   // The player who claimed the snap window selects a card to snap

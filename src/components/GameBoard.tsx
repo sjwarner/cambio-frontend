@@ -119,12 +119,12 @@ export default function GameBoard({ state, dispatch, myPlayerId }: Props) {
       if (!first) return filled;
       return new Set([...filled].filter((i) => !(playerId === first.playerId && i === first.slotIndex)));
     }
-    if (phase === 'special-bk-look') return filled;
-    if (phase === 'special-bk-switch' && playerId === currentId) {
-      const lookedRef = state.special?.firstRef;
-      return new Set([...filled].filter(
-        (i) => !(lookedRef && playerId === lookedRef.playerId && i === lookedRef.slotIndex),
-      ));
+    if (phase === 'special-bk-look' && playerId !== currentId) return filled;
+    if (phase === 'special-bk-switch') return filled;
+    if (phase === 'special-bk-swap-2') {
+      const first = state.special?.firstRef;
+      if (!first) return filled;
+      return new Set([...filled].filter((i) => !(playerId === first.playerId && i === first.slotIndex)));
     }
     if (phase === 'snap-select') {
       const snaperId = state.snap?.claimedBy;
@@ -184,11 +184,13 @@ export default function GameBoard({ state, dispatch, myPlayerId }: Props) {
       case 'special-blind-2':
         return `${you}: tap the second card to complete the swap.`;
       case 'special-bk-look':
-        return `${you} (Black King): tap any card to look at it.`;
+        return `${you} (Black King): tap any opponent's card to look at it.`;
       case 'special-bk-reveal':
-        return `${you}: memorise this card. Swap it with one of ${your} own, or skip.`;
+        return `${you}: memorise this card. Then swap any two cards, or skip.`;
       case 'special-bk-switch':
-        return `${you}: tap one of ${your} own cards to swap with the peeked card.`;
+        return `${you}: tap the first card to swap (any player).`;
+      case 'special-bk-swap-2':
+        return `${you}: tap the second card to complete the swap.`;
       case 'snap-window': {
         const rank = topDiscard?.rank ?? '?';
         return `${rank} discarded! Tap "Snap!" if you have a matching card.`;

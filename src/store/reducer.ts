@@ -275,6 +275,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
       if (state.phase === 'special-bk-look') {
+        // Peek is restricted to opponents only
+        if (ref.playerId === currentId) return state;
         const card = state.players.find((p) => p.id === ref.playerId)?.hand[ref.slotIndex];
         if (!card) return state;
         return {
@@ -285,12 +287,22 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
       if (state.phase === 'special-bk-switch') {
-        if (ref.playerId !== currentId) return state;
-        const lookedRef = state.special?.firstRef;
-        if (!lookedRef) return state;
-        if (ref.playerId === lookedRef.playerId && ref.slotIndex === lookedRef.slotIndex) return state;
-        const players = swapCards(state.players, lookedRef, ref);
-        return afterSpecial({ ...state, players, lastActionRefs: [lookedRef, ref] });
+        // First card of an independent swap (any player)
+        const card = state.players.find((p) => p.id === ref.playerId)?.hand[ref.slotIndex];
+        if (!card) return state;
+        return {
+          ...state,
+          phase: 'special-bk-swap-2',
+          special: { ...state.special!, firstRef: ref },
+        };
+      }
+
+      if (state.phase === 'special-bk-swap-2') {
+        const first = state.special?.firstRef;
+        if (!first) return state;
+        if (ref.playerId === first.playerId && ref.slotIndex === first.slotIndex) return state;
+        const players = swapCards(state.players, first, ref);
+        return afterSpecial({ ...state, players, lastActionRefs: [first, ref] });
       }
 
       // ── snap-select ───────────────────────────────────────────────────────
@@ -389,7 +401,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return afterSpecial({ ...state, special: { ...state.special!, revealedCard: null } });
       }
       if (state.phase === 'special-bk-reveal') {
-        return { ...state, phase: 'special-bk-switch' };
+        // Clear firstRef (was the peeked card) so special-bk-switch can use it for the swap
+        return { ...state, phase: 'special-bk-switch', special: { ...state.special!, firstRef: null } };
       }
       return state;
     }
